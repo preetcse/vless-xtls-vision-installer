@@ -81,6 +81,7 @@ namespace RoleplayOverhaul.Banking
         {
             Balance += amount;
             RecordTransaction(TransactionType.Deposit, amount, reason);
+            Diagnostics.Logger.Info($"Deposit: {amount} ({reason})");
         }
 
         public bool Withdraw(int amount, string reason = "Withdrawal")
@@ -89,8 +90,10 @@ namespace RoleplayOverhaul.Banking
             {
                 Balance -= amount;
                 RecordTransaction(TransactionType.Withdrawal, -amount, reason);
+                Diagnostics.Logger.Info($"Withdraw: {amount} ({reason})");
                 return true;
             }
+            Diagnostics.Logger.Info($"Withdraw Failed: {amount} ({reason}) - Insufficient Funds");
             return false;
         }
 

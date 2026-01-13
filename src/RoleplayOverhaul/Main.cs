@@ -118,42 +118,49 @@ namespace RoleplayOverhaul
 
         private void OnTick(object sender, EventArgs e)
         {
-            _jobManager.OnTick();
-            _licenseManager.Update(); // Check tests
-
-            // New Managers
-            _crimeManager.Update();
-            _dispatchManager.OnTick();
-            _survivalManager.OnTick();
-            _prisonManager.OnTick();
-            _propertyManager.CheckInteraction();
-            _propertyManager.DailyUpdate();
-            _heistManager.OnTick();
-
-            // Banking Ticks
-            _bankingManager.OnTick();
-            _billManager.OnTick();
-            _atmManager.OnTick();
-            _bankInterior.OnTick();
-            _vehicleManager.OnTick();
-            _activityManager.OnTick();
-            _businessManager.OnTick();
-            _trafficManager.OnTick();
-            _populationManager.OnTick();
-            _weaponSystem.OnTick();
-            _persistenceManager.OnTick();
-
-            // Check for Arrest
-            if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)
+            try
             {
-                 // Vanilla system cleared wanted level (Busted), so we imprison
-                 // Note: Needs robust detection, simplified here
-                 // _dispatchManager.AttemptArrest(); // Fines logic
-                 // _prisonManager.Imprison(60); // 1 minute jail
-            }
+                // Diagnostics.Logger.Trace("Tick Start"); // Very spammy, uncomment if deep debugging needed
 
-            // Draw UI with Heat Stats
-            _uiManager.Draw(_crimeManager.HeatLevel);
+                _jobManager.OnTick();
+                _licenseManager.Update();
+
+                _crimeManager.Update();
+                _dispatchManager.OnTick();
+                _survivalManager.OnTick();
+                _prisonManager.OnTick();
+                _propertyManager.CheckInteraction();
+                _propertyManager.DailyUpdate();
+                _heistManager.OnTick();
+
+                _bankingManager.OnTick();
+                _billManager.OnTick();
+                _atmManager.OnTick();
+                _bankInterior.OnTick();
+                _vehicleManager.OnTick();
+                _activityManager.OnTick();
+                _businessManager.OnTick();
+                _trafficManager.OnTick();
+                _populationManager.OnTick();
+                _weaponSystem.OnTick();
+                _persistenceManager.OnTick();
+
+                // Check for Arrest
+                if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)
+                {
+                     // Vanilla system cleared wanted level (Busted), so we imprison
+                }
+
+                // Draw UI with Heat Stats
+                _uiManager.Draw(_crimeManager.HeatLevel);
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Logger.Error("CRASH IN TICK LOOP", ex);
+                GTA.UI.Screen.ShowSubtitle("~r~Roleplay Overhaul Error! Check Log.");
+                // Option: Disable mod to prevent infinite error loop
+                // Tick -= OnTick;
+            }
         }
 
         private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
