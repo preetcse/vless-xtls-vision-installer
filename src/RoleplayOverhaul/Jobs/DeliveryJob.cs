@@ -46,10 +46,15 @@ namespace RoleplayOverhaul.Jobs
              try
             {
                 _jobVehicle = World.CreateVehicle(VehicleModel, spawnPos);
-                // if (_jobVehicle != null) { _jobVehicle.AddBlip(); } // AddBlip not in stub Vehicle yet but fine
+                // if (_jobVehicle != null) { _jobVehicle.AddBlip(); }
                 GTA.UI.Screen.ShowSubtitle($"Job Started. Get in the {VehicleModel}.");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Diagnostics.Logger.Error("Failed to spawn job vehicle", ex);
+                GTA.UI.Screen.ShowSubtitle("Error: Could not spawn vehicle!");
+                End();
+            }
         }
 
         private void SetNextDestination()

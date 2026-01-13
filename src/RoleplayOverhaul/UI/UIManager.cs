@@ -65,9 +65,16 @@ namespace RoleplayOverhaul.UI
             if (!_isVisible) return;
 
             // Get Real Mouse Position (Supported by both Game and Stub now)
+            // Resolution Scaling Fix: Map 1080p coords to actual resolution if needed
+            // For SHVDN, Screen.MousePosition usually returns absolute pixel coords or 1280x720 scaled.
+            // We assume 1080p base for our UI layout.
+
             Point mousePos = GTA.UI.Screen.MousePosition;
             float mouseX = mousePos.X;
             float mouseY = mousePos.Y;
+
+            // Bounds check
+            if (mouseX < 0 || mouseY < 0) return;
 
             // Check collision with slots
             for (int i = 0; i < _inventory.MaxSlots; i++)

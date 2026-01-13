@@ -12,23 +12,29 @@ namespace RoleplayOverhaul.World
 
     public class TrafficManager
     {
+        private int _lastUpdate;
+
         public void OnTick()
         {
+            // Performance Optimization: Run every 1s, not every tick
+            if (GTA.Game.GameTime - _lastUpdate < 1000) return;
+            _lastUpdate = GTA.Game.GameTime;
+
             Vector3 playerPos = GTA.Game.Player.Character.Position;
 
-            // Find nearest node (Optimization: In real mod, use QuadTree. Here: Linear scan for proto)
-            // We scan every 100th node to save performance in this huge list
-            for(int i = 0; i < TrafficDatabase.Nodes.Count; i+=100)
+            // Find nearest node (Optimization: Linear scan with stride)
+            for(int i = 0; i < TrafficDatabase.Nodes.Count; i+=50) // Checked stride
             {
                 var node = TrafficDatabase.Nodes[i];
-                if (playerPos.DistanceTo(node.Position) < 100.0f)
+                // Using Squared Distance for performance
+                if (playerPos.DistanceToSquared(node.Position) < 10000.0f) // 100m^2
                 {
                     // Apply Traffic Rules
-                    // GTA.Native.Function.Call(GTA.Native.Hash.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, node.Density * 0.1f);
-                    // GTA.Native.Function.Call(GTA.Native.Hash.SET_RANDOM_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, node.Density * 0.1f);
+                    GTA.Native.Function.Call(GTA.Native.Hash.SET_VEHICLE_DENSITY_MULTIPLIER_THIS_FRAME, node.Density * 0.1f);
 
-                    GTA.UI.Screen.ShowSubtitle($"Zone Density: {node.Density} | Speed Limit: {node.SpeedLimit}");
-                    return; // Found local node
+                    // Debug output removed to reduce spam, only log if critical
+                    // GTA.UI.Screen.ShowSubtitle($"Zone Density: {node.Density} | Speed Limit: {node.SpeedLimit}");
+                    return;
                 }
             }
         }
