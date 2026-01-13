@@ -61,6 +61,28 @@ namespace RoleplayOverhaul.Core
                  GTA.UI.Screen.ShowSubtitle("Trying to escape? Sentence extended!");
                  SentenceTimeRemaining += 30;
             }
+
+            CheckPrisonJobs();
+        }
+
+        private void CheckPrisonJobs()
+        {
+            // Simple job locations in the yard
+            Vector3 workoutPos = _jailLocation + new Vector3(10, 0, 0);
+            Vector3 cleanPos = _jailLocation + new Vector3(-10, 0, 0);
+
+            if (GTA.Game.Player.Character.Position.DistanceTo(workoutPos) < 2.0f)
+            {
+                 GTA.UI.Screen.ShowHelpText("Press E to Workout (-10s sentence)");
+                 if (GTA.Game.IsControlJustPressed(GTA.Control.Context))
+                 {
+                     GTA.UI.Screen.FadeOut(500);
+                     GTA.Wait(1000);
+                     GTA.UI.Screen.FadeIn(500);
+                     SentenceTimeRemaining = Math.Max(0, SentenceTimeRemaining - 10);
+                     GTA.UI.Screen.ShowSubtitle("Worked out. Time reduced.");
+                 }
+            }
         }
     }
 }

@@ -5,57 +5,9 @@ namespace RoleplayOverhaul.Jobs
 {
     public static class JobLibrary
     {
-        public static List<IJob> CreateAllJobs()
-        {
-            var jobs = new List<IJob>();
-
-            // 1. Delivery & Transport
-            jobs.Add(new SimpleJob("Pizza Delivery", "Deliver pizzas to customers.", "pizzaboy"));
-            jobs.Add(new SimpleJob("Courier", "Deliver packages around the city.", "boxville"));
-            jobs.Add(new SimpleJob("Trucker", "Haul cargo across the state.", "phantom"));
-            jobs.Add(new SimpleJob("Taxi Driver", "Ferry passengers to their destinations.", "taxi"));
-            jobs.Add(new SimpleJob("Bus Driver", "Follow the route and pick up passengers.", "bus"));
-            jobs.Add(new SimpleJob("Trash Collector", "Clean up the city streets.", "trash"));
-            jobs.Add(new SimpleJob("PostOp Driver", "Deliver mail.", "postop"));
-            jobs.Add(new SimpleJob("Armored Truck", "Transport cash securely.", "stockade"));
-            jobs.Add(new SimpleJob("Tow Truck", "Impound illegally parked cars.", "towtruck"));
-            jobs.Add(new SimpleJob("Forklift Operator", "Move crates at the docks.", "forklift"));
-
-            // 2. Emergency Services
-            jobs.Add(new SimpleJob("Paramedic", "Save injured civilians.", "ambulance"));
-            jobs.Add(new SimpleJob("Firefighter", "Put out fires.", "firetruck"));
-            jobs.Add(new SimpleJob("Police Officer", "Patrol and arrest criminals.", "police"));
-            jobs.Add(new SimpleJob("Coast Guard", "Patrol the waters.", "predator"));
-            jobs.Add(new SimpleJob("Lifeguard", "Watch over the beach.", "lguard"));
-
-            // 3. Manual Labor & Harvesting
-            jobs.Add(new SimpleJob("Miner", "Mine for ore in the quarry.", "rubble"));
-            jobs.Add(new SimpleJob("Lumberjack", "Cut down trees in Paleto.", "log"));
-            jobs.Add(new SimpleJob("Farmer", "Harvest crops.", "tractor"));
-            jobs.Add(new SimpleJob("Fisherman", "Catch fish at sea.", "tug"));
-            jobs.Add(new SimpleJob("Construction Worker", "Work on building sites.", "mixer"));
-            jobs.Add(new SimpleJob("Oil Tycoon", "Maintain oil pumps.", "tanker"));
-            jobs.Add(new SimpleJob("Gardener", "Tend to lawns in Vinewood.", "mower"));
-
-            // 4. Illegal / Underground
-            // Note: These now use IllegalJob to integrate with the new Police System
-            // We need a reference to the global CrimeManager, but JobLibrary is static.
-            // For now, we assume CrimeManager is passed or accessed via Singleton (refactor needed in Main).
-            // To keep it simple for this compilation, we will use SimpleJob but note the need for injection.
-            // *Correction*: We will inject null for now and fix in Main factory logic if strictly needed,
-            // or better, Main creates the library.
-
-            // Re-architecting: JobLibrary.CreateAllJobs needs dependencies.
-        }
-
         public static List<IJob> CreateAllJobs(Police.CrimeManager crimeManager)
         {
              var jobs = new List<IJob>();
-             // ... [Previous jobs omitted for brevity, assuming we append/re-add them all] ...
-
-             // Reuse the simple list creation logic from before, but modify the illegal section
-             // Since I am editing a file, I need to be careful not to delete the previous list code.
-             // I will replace the METHOD signature and body.
 
              // 1. Delivery & Transport
             jobs.Add(new SimpleJob("Pizza Delivery", "Deliver pizzas to customers.", "pizzaboy"));

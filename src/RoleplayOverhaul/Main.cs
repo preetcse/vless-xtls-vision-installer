@@ -18,6 +18,8 @@ namespace RoleplayOverhaul
         private SurvivalManager _survivalManager;
         private PrisonManager _prisonManager;
         private GangManager _gangManager;
+        private PropertyManager _propertyManager;
+        private CharacterManager _characterManager;
 
         public RoleplayMod()
         {
@@ -31,6 +33,8 @@ namespace RoleplayOverhaul
             _survivalManager = new SurvivalManager();
             _prisonManager = new PrisonManager();
             _gangManager = new GangManager();
+            _propertyManager = new PropertyManager();
+            _characterManager = new CharacterManager();
 
             // Register Events
             Tick += OnTick;
@@ -70,6 +74,8 @@ namespace RoleplayOverhaul
             _dispatchManager.OnTick();
             _survivalManager.OnTick();
             _prisonManager.OnTick();
+            _propertyManager.CheckInteraction();
+            _propertyManager.DailyUpdate();
 
             // Check for Arrest
             if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)

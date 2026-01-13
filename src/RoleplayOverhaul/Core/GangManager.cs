@@ -57,5 +57,28 @@ namespace RoleplayOverhaul.Core
             }
             */
         }
+
+        public string RequestMission(GangFaction gang)
+        {
+            if (GetReputation(gang) < 10)
+            {
+                return "We don't know you well enough. Get lost.";
+            }
+
+            // Generate Mission
+            Random r = new Random();
+            int type = r.Next(0, 3);
+
+            string obj = "";
+            switch(type)
+            {
+                case 0: obj = "Deliver this package to Sandy Shores."; break;
+                case 1: obj = "Take out the snitch at the construction site."; break;
+                case 2: obj = "Steal a Baller and bring it back."; break;
+            }
+
+            GTA.UI.Screen.ShowSubtitle($"Mission from {gang}: {obj}");
+            return obj;
+        }
     }
 }

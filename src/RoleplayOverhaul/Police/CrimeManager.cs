@@ -51,13 +51,44 @@ namespace RoleplayOverhaul.Police
                 }
             }
 
-            // Check for simple crimes (Mock logic since we can't hook all native events easily)
+            // Check for simple crimes
             if (GTA.Game.Player.Character.IsShooting)
             {
-               // ReportCrime("Discharge Firearm", 5); // Spammy without cooldown, logic handled in Dispatcher usually
+               // ReportCrime("Discharge Firearm", 5);
             }
 
+            CheckTrafficViolations();
+
             _justCommittedCrime = false;
+        }
+
+        private void CheckTrafficViolations()
+        {
+            if (GTA.Game.Player.Character.IsInVehicle())
+            {
+                var vehicle = GTA.Game.Player.Character.CurrentVehicle;
+                float speed = vehicle.Speed; // m/s
+
+                // Speed Limit Logic (Simplified: 30 m/s ~ 100 km/h as generic limit)
+                // In a real mod, we use vehicle.GetSpeedLimit() or get road data
+                if (speed > 40.0f) // ~140 km/h
+                {
+                    if (GTA.Game.GameTime % 5000 == 0) // Don't spam
+                    {
+                        ReportCrime("Felony Speeding", 5);
+                    }
+                }
+                else if (speed > 25.0f && WantedStars == 0)
+                {
+                    // Minor speeding
+                     if (GTA.Game.GameTime % 10000 == 0)
+                    {
+                        // Chance to be spotted
+                        ReportCrime("Speeding Violation", 1);
+                        GTA.UI.Screen.ShowSubtitle("Police: Pull over immediately!", 2000);
+                    }
+                }
+            }
         }
     }
 }

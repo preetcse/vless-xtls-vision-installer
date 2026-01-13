@@ -49,21 +49,52 @@ namespace RoleplayOverhaul.Police
         private void SpawnPoliceUnit()
         {
             // Find spawn point near player but not seen
-            Vector3 spawnPos = GTA.Game.Player.Character.Position + new Vector3(50, 0, 0); // Simplified
+            Vector3 playerPos = GTA.Game.Player.Character.Position;
+            Vector3 spawnPos = playerPos + new Vector3(100, 0, 0); // Further out
 
-            // In a real mod, we'd use World.GetNextPositionOnStreet
+            // Determine Region (Simplified Y check)
+            bool isCountry = playerPos.Y > 1000.0f; // North of city
+            bool isHighways = false; // logic would check road node type
 
-            string vehicleName = "police";
-            if (_crimeManager.WantedStars > 3) vehicleName = "fbi";
-            if (_crimeManager.WantedStars > 4) vehicleName = "riot";
+            string vehicleName = isCountry ? "sheriff" : "police";
+            string pedName = isCountry ? "s_m_y_sheriff_01" : "s_m_y_cop_01";
 
-            // Mock Spawning (Cannot execute in sandbox)
-            // var vehicle = World.CreateVehicle(vehicleName, spawnPos);
-            // var cop = vehicle.CreatePedOnSeat(VehicleSeat.Driver, "s_m_y_cop_01");
-            // cop.Task.FightAgainst(GTA.Game.Player.Character);
-            // _activeCops.Add(cop);
+            // Escalation Logic
+            if (_crimeManager.WantedStars == 3)
+            {
+                 vehicleName = isCountry ? "sheriff2" : "police3"; // Interceptors
+            }
+            if (_crimeManager.WantedStars == 4)
+            {
+                 vehicleName = "fbi";
+                 pedName = "s_m_y_swat_01";
+            }
+            if (_crimeManager.WantedStars >= 5)
+            {
+                vehicleName = "riot";
+                pedName = "s_m_y_swat_01";
+            }
 
-            GTA.UI.Screen.ShowSubtitle("Dispatching reinforcements...");
+            // Mock Spawning
+            /*
+            var vehicle = World.CreateVehicle(vehicleName, spawnPos);
+            if (vehicle != null)
+            {
+                var cop = vehicle.CreatePedOnSeat(VehicleSeat.Driver, pedName);
+                cop.Task.FightAgainst(GTA.Game.Player.Character);
+                cop.Weapons.Give(GTA.WeaponHash.CarbineRifle, 999, true, true);
+
+                // Add passenger for higher levels
+                if (_crimeManager.WantedStars >= 3)
+                {
+                     vehicle.CreatePedOnSeat(VehicleSeat.Passenger, pedName).Task.FightAgainst(GTA.Game.Player.Character);
+                }
+
+                _activeCops.Add(cop);
+            }
+            */
+
+            GTA.UI.Screen.ShowSubtitle($"Dispatching {vehicleName} unit...");
         }
 
         public void AttemptArrest()
