@@ -132,7 +132,7 @@ namespace RoleplayOverhaul.UI
             int width = (COLS * (SLOT_SIZE + PADDING)) + PADDING;
             int height = (rows * (SLOT_SIZE + PADDING)) + PADDING;
 
-            new UIRectangle(new PointF(_startPos.X, _startPos.Y), new SizeF(width, height), Color.FromArgb(200, 0, 0, 0)).Draw();
+            new Rectangle(new PointF(_startPos.X, _startPos.Y), new SizeF(width, height), Color.FromArgb(200, 0, 0, 0)).Draw();
 
             // Draw Slots
             for (int i = 0; i < _inventory.MaxSlots; i++)
@@ -144,7 +144,7 @@ namespace RoleplayOverhaul.UI
                 float y = _startPos.Y + PADDING + (row * (SLOT_SIZE + PADDING));
 
                 // Slot Background
-                new UIRectangle(new PointF(x, y), new SizeF(SLOT_SIZE, SLOT_SIZE), Color.FromArgb(150, 50, 50, 50)).Draw();
+                new Rectangle(new PointF(x, y), new SizeF(SLOT_SIZE, SLOT_SIZE), Color.FromArgb(150, 50, 50, 50)).Draw();
 
                 // Draw Item if exists
                 if (i < _inventory.Slots.Count)
@@ -168,7 +168,7 @@ namespace RoleplayOverhaul.UI
         {
              // Phone-like UI background
              PointF pos = new PointF(1500, 500);
-             new UIRectangle(pos, new SizeF(300, 500), Color.FromArgb(255, 30, 30, 30)).Draw();
+             new Rectangle(pos, new SizeF(300, 500), Color.FromArgb(255, 30, 30, 30)).Draw();
              new TextElement("Maze Bank", new PointF(pos.X + 100, pos.Y + 20), 0.6f, Color.Red).Draw();
 
              new TextElement($"Balance: ${_bank.Balance:N0}", new PointF(pos.X + 20, pos.Y + 80), 0.5f, Color.White).Draw();
@@ -192,18 +192,18 @@ namespace RoleplayOverhaul.UI
             // Draw Bottom Left Bars (GTA V style area)
             // Hunger (Orange)
             float hungerW = _survival.Hunger * 2.0f;
-            new UIRectangle(new PointF(20, 1000), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
-            new UIRectangle(new PointF(20, 1000), new SizeF(hungerW, 10), Color.Orange).Draw();
+            new Rectangle(new PointF(20, 1000), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
+            new Rectangle(new PointF(20, 1000), new SizeF(hungerW, 10), Color.Orange).Draw();
 
             // Thirst (Blue)
             float thirstW = _survival.Thirst * 2.0f;
-            new UIRectangle(new PointF(20, 1015), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
-            new UIRectangle(new PointF(20, 1015), new SizeF(thirstW, 10), Color.Blue).Draw();
+            new Rectangle(new PointF(20, 1015), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
+            new Rectangle(new PointF(20, 1015), new SizeF(thirstW, 10), Color.Blue).Draw();
 
             // Fatigue (Gray)
             float fatigueW = _survival.Sleep * 2.0f;
-            new UIRectangle(new PointF(20, 1030), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
-            new UIRectangle(new PointF(20, 1030), new SizeF(fatigueW, 10), Color.Gray).Draw();
+            new Rectangle(new PointF(20, 1030), new SizeF(200, 10), Color.FromArgb(100, 0, 0, 0)).Draw(); // BG
+            new Rectangle(new PointF(20, 1030), new SizeF(fatigueW, 10), Color.Gray).Draw();
 
             // Speedometer (Text)
             if (GTA.Game.Player.Character.IsInVehicle())

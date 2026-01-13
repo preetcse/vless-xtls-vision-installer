@@ -15,15 +15,15 @@ namespace RoleplayOverhaul.Jobs
             jobs.Add(new DeliveryJob("Trucker", "phantom"));
             jobs.Add(new TaxiJob());
             jobs.Add(new DeliveryJob("Bus Driver", "bus"));
-            jobs.Add(new DeliveryJob("Trash Collector", "trash"));
+            jobs.Add(new GarbageJob());
             jobs.Add(new DeliveryJob("PostOp Driver", "postop"));
             jobs.Add(new DeliveryJob("Armored Truck", "stockade"));
-            jobs.Add(new DeliveryJob("Tow Truck", "towtruck"));
+            jobs.Add(new TowTruckJob());
             jobs.Add(new DeliveryJob("Forklift Operator", "forklift"));
 
             // 2. Emergency Services
             jobs.Add(new ParamedicJob());
-            jobs.Add(new SimpleJob("Firefighter", "Put out fires.", "firetruck"));
+            jobs.Add(new FirefighterJob());
             jobs.Add(new PoliceJob());
             jobs.Add(new SimpleJob("Coast Guard", "Patrol the waters.", "predator"));
             jobs.Add(new SimpleJob("Lifeguard", "Watch over the beach.", "lguard"));

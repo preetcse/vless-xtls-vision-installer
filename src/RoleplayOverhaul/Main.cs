@@ -29,6 +29,7 @@ namespace RoleplayOverhaul
         private Activities.ActivityManager _activityManager;
         private Core.VehicleManager _vehicleManager;
         private Core.CareerManager _careerManager;
+        private Core.BusinessManager _businessManager;
 
         public RoleplayMod()
         {
@@ -58,12 +59,7 @@ namespace RoleplayOverhaul
             _atmManager = new Banking.ATMManager(_bankingManager);
             _bankInterior = new Banking.BankInterior(_bankingManager);
             _vehicleManager = new Core.VehicleManager(_bankingManager);
-            _bankingManager = new Banking.BankingManager();
-            _bankingManager.AutoBankIncome = _configManager.AutoBank;
-
-            _billManager = new Banking.BillManager(_bankingManager);
-            _atmManager = new Banking.ATMManager(_bankingManager);
-            _bankInterior = new Banking.BankInterior(_bankingManager);
+            _businessManager = new Core.BusinessManager(_bankingManager);
 
             // UI needs bank ref now
             _uiManager = new UIManager(_playerInventory, _bankingManager);
@@ -124,6 +120,7 @@ namespace RoleplayOverhaul
             _bankInterior.OnTick();
             _vehicleManager.OnTick();
             _activityManager.OnTick();
+            _businessManager.OnTick();
 
             // Check for Arrest
             if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)

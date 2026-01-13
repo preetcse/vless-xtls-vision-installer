@@ -9,12 +9,14 @@ namespace RoleplayOverhaul.Police
     public class DispatchManager
     {
         private CrimeManager _crimeManager;
+        private TacticsManager _tacticsManager;
         private List<Ped> _activeCops;
         private int _lastSpawnTime;
 
         public DispatchManager(CrimeManager crimeManager)
         {
             _crimeManager = crimeManager;
+            _tacticsManager = new TacticsManager();
             _activeCops = new List<Ped>();
         }
 
@@ -27,6 +29,7 @@ namespace RoleplayOverhaul.Police
                 // Note: SHVDN allows us to manage this, but for now we SUPPLEMENT vanilla.
 
                 ManageReinforcements();
+                _tacticsManager.Update(_crimeManager.HeatLevel, _crimeManager.WantedStars);
             }
         }
 
