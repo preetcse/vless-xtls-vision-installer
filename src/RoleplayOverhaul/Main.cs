@@ -6,8 +6,8 @@ using RoleplayOverhaul.Jobs;
 using RoleplayOverhaul.UI;
 using RoleplayOverhaul.Activities;
 using RoleplayOverhaul.Jobs.Leveling;
-using RoleplayOverhaul.Crafting; // Added
-using RoleplayOverhaul.Activities.Illegal; // Added
+using RoleplayOverhaul.Crafting;
+using RoleplayOverhaul.Activities.Illegal;
 
 namespace RoleplayOverhaul
 {
@@ -53,7 +53,8 @@ namespace RoleplayOverhaul
         private CraftingMenu _craftingMenu;
         private InteractionSystem _interactionSystem;
         private DrugRun _drugRun;
-        private GangRaid _gangRaid;
+        private GangRaidManager _gangRaid; // Updated Type
+        private KidnappingManager _kidnappingManager; // Added
 
         public RoleplayMod()
         {
@@ -110,9 +111,13 @@ namespace RoleplayOverhaul
             // Initialize New Systems
             _craftingManager = new CraftingManager(_playerInventory);
             _craftingMenu = new CraftingMenu(_playerInventory, _craftingManager);
-            _interactionSystem = new InteractionSystem();
+
             _drugRun = new DrugRun();
-            _gangRaid = new GangRaid();
+            _gangRaid = new GangRaidManager(); // Updated
+            _kidnappingManager = new KidnappingManager(); // Added
+
+            // Init Interaction System with dependency
+            _interactionSystem = new InteractionSystem(_kidnappingManager);
 
             // Register Events
             Tick += OnTick;
@@ -194,6 +199,7 @@ namespace RoleplayOverhaul
                 _interactionSystem.OnTick();
                 _drugRun.OnTick();
                 _gangRaid.OnTick();
+                _kidnappingManager.OnTick(); // Added
 
                 // Check for Arrest
                 if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)
@@ -276,6 +282,11 @@ namespace RoleplayOverhaul
             // Illegal Activity Debug
             if (e.KeyCode == System.Windows.Forms.Keys.NumPad6) _drugRun.StartMission();
             if (e.KeyCode == System.Windows.Forms.Keys.NumPad7) _gangRaid.StartRaid(Game.Player.Character.Position + new GTA.Math.Vector3(50,50,0), "Ballas");
+            if (e.KeyCode == System.Windows.Forms.Keys.G && !_kidnappingManager.IsKidnapping) // G to grapple closest ped if not dragging
+            {
+                GTA.Ped closest = GTA.World.GetClosestPed(GTA.Game.Player.Character.Position, 2.0f);
+                if (closest != null) _kidnappingManager.AttemptKidnap(closest);
+            }
         }
     }
 }

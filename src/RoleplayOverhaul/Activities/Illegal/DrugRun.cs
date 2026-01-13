@@ -44,7 +44,8 @@ namespace RoleplayOverhaul.Activities.Illegal
                 return;
             }
 
-            if (Game.Player.Character.IsInVehicle(_drugVan) && World.GetDistance(_drugVan.Position, _destination) < 10f)
+            // Fixed World.GetDistance usage to Vector3.Distance
+            if (Game.Player.Character.IsInVehicle(_drugVan) && Vector3.Distance(_drugVan.Position, _destination) < 10f)
             {
                 CompleteMission();
             }

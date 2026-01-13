@@ -27,7 +27,8 @@ namespace RoleplayOverhaul.Activities
         {
             if (!isHunting) return;
 
-            float dist = World.GetDistance(Game.Player.Character.Position, targetLocation);
+            // Fixed World.GetDistance usage to Vector3.Distance
+            float dist = Vector3.Distance(Game.Player.Character.Position, targetLocation);
 
             // Beeper logic (closer = faster beep)
             if (dist < 100)
