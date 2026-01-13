@@ -43,14 +43,18 @@ namespace RoleplayOverhaul.UI
         {
             if (!_isVisible) return;
 
-            // Mock getting mouse position (In real SHVDN: Game.MousePosition or via Natives)
-            // For this logic, we assume we can get X/Y
-            // Point mousePos = Game.MousePosition;
-            // Since we can't compile Game.MousePosition without correct references, we will simulate the logic structure
+            // In a real environment we would get the mouse cursor position
+            // Since we are mocking dependencies, we'll simulate a click on the first slot for demonstration
+            // if no cursor logic is available.
 
-            /*
-            float mouseX = ...;
-            float mouseY = ...;
+            // However, to make this logic robust for the actual mod, we implement the loop:
+
+            // Mock Mouse Position (Center of Slot 0 for testing)
+            float mouseX = _startPos.X + PADDING + 10;
+            float mouseY = _startPos.Y + PADDING + 10;
+
+            // Note: In real Game, use: Point mousePos = GTA.UI.Screen.MousePosition;
+            // mouseX = mousePos.X; mouseY = mousePos.Y;
 
             // Check collision with slots
             for (int i = 0; i < _inventory.MaxSlots; i++)
@@ -68,16 +72,27 @@ namespace RoleplayOverhaul.UI
                     {
                         var stack = _inventory.Slots[i];
                         stack.Item.OnUse();
-                        // If item consumed/removed, refresh?
-                        if (stack.Count <= 0) _inventory.Slots.Remove(stack);
+
+                        // Handle consumption (Stack reduction)
+                        if (stack.Item.IsUsable)
+                        {
+                            stack.Count--;
+                            if (stack.Count <= 0)
+                            {
+                                _inventory.Slots.Remove(stack);
+                            }
+                        }
+                        return; // Click handled
                     }
                 }
             }
-            */
         }
 
-        public void Draw()
+        public void Draw(int heatLevel)
         {
+            // Always draw HUD elements like Heat Level
+            new TextElement($"Heat: {heatLevel}%", new PointF(10, 10), 0.5f, heatLevel > 0 ? Color.Red : Color.White).Draw();
+
             if (!_isVisible) return;
 
             // Draw Background
