@@ -1,7 +1,7 @@
 using System;
 using GTA;
 using GTA.Math;
-using RoleplayOverhaul.Items;
+using RoleplayOverhaul.Core.Inventory; // New System
 using RoleplayOverhaul.Police;
 
 namespace RoleplayOverhaul.Missions
@@ -9,19 +9,16 @@ namespace RoleplayOverhaul.Missions
     public class FleecaBankHeist : MissionBase
     {
         private CrimeManager _crimeManager;
-        private Inventory _inventory;
+        private GridInventory _inventory; // New Dependency
 
         // Stages
         private bool _hasGetawayCar;
         private bool _hasDrill;
 
-        // Coords (Mock)
+        // Coords
         private Vector3 _bankLocation = new Vector3(-351.0f, -49.0f, 49.0f); // Burton Fleeca
-        private Vector3 _dropOffLocation = new Vector3(1200.0f, -3000.0f, 5.0f); // Docks
 
-        private int _holdoutTimer;
-
-        public FleecaBankHeist(CrimeManager crime, Inventory inventory)
+        public FleecaBankHeist(CrimeManager crime, GridInventory inventory)
             : base("The Fleeca Job", "Rob the Fleeca Bank on Burton.", 150000)
         {
             _crimeManager = crime;
@@ -33,7 +30,6 @@ namespace RoleplayOverhaul.Missions
             switch (State)
             {
                 case MissionState.Setup:
-                    // Objective 1: Get Getaway Car (Any 4 seater)
                     if (GTA.Game.Player.Character.IsInVehicle())
                     {
                         var veh = GTA.Game.Player.Character.CurrentVehicle;
@@ -52,8 +48,8 @@ namespace RoleplayOverhaul.Missions
                     break;
 
                 case MissionState.Prep:
-                    // Objective 2: Buy/Find Drill
-                    if (_inventory.HasItem("tool_drill"))
+                    // Use GridInventory Count
+                    if (_inventory.GetItemCount("tool_drill") > 0)
                     {
                         _hasDrill = true;
                         State = MissionState.Finale;
@@ -62,27 +58,26 @@ namespace RoleplayOverhaul.Missions
                     else
                     {
                          if (GTA.Game.GameTime % 5000 == 0)
-                            GTA.UI.Screen.ShowHelpText("Acquire a Drill from the Hardware Store.");
+                            GTA.UI.Screen.ShowHelpText("Acquire a Drill from the Hardware Store (Crafting).");
                     }
                     break;
 
                 case MissionState.Finale:
-                    // Stage 3: The Robbery
-                    float dist = GTA.Game.Player.Character.Position.DistanceTo(_bankLocation);
+                    float dist = Vector3.Distance(GTA.Game.Player.Character.Position, _bankLocation);
                     if (dist < 10.0f)
                     {
-                        // In bank
-                        if (_crimeManager.WantedStars < 3) _crimeManager.ReportCrime("Bank Robbery", 60);
+                        if (_crimeManager.WantedStars < 3) _crimeManager.ReportCrime(new Crime(CrimeType.ArmedRobbery, _bankLocation));
 
-                        if (GTA.Game.Player.Character.Position.DistanceTo(_bankLocation) < 2.0f)
+                        if (dist < 2.0f)
                         {
-                            GTA.UI.Screen.ShowHelpText("Press E to Drill Vault");
+                            GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to Drill Vault");
                             if (GTA.Game.IsControlJustPressed(GTA.Control.Context))
                             {
-                                // Minigame would go here. Mocking timer.
-                                _holdoutTimer = 3000; // 3000 ticks ~ 1 min logic (simplified)
-                                State = MissionState.Completed; // Move to Escape logic if we had distinct enum, re-using Completed for simplicity but...
-                                // Actually let's just finish it for the prototype
+                                // Remove Drill
+                                _inventory.RemoveItem("tool_drill", 1);
+                                GTA.UI.Notification.Show("Used Drill!");
+
+                                GTA.Game.Player.Money += 150000;
                                 Complete();
                             }
                         }
@@ -90,7 +85,7 @@ namespace RoleplayOverhaul.Missions
                     else
                     {
                          if (GTA.Game.GameTime % 5000 == 0)
-                            GTA.UI.Screen.ShowSubtitle($"Go to Fleeca Bank: {dist}m");
+                            GTA.UI.Screen.ShowSubtitle($"Go to Fleeca Bank: {dist:0}m");
                     }
                     break;
             }

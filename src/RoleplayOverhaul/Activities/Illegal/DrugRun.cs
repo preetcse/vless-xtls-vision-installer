@@ -12,15 +12,34 @@ namespace RoleplayOverhaul.Activities.Illegal
         private Vector3 _destination;
         private Blip _destBlip;
         private float _timeLimit;
+        private Random _rnd;
+
+        public DrugRun()
+        {
+            _rnd = new Random();
+        }
 
         public void StartMission()
         {
             _isActive = true;
-            _destination = new Vector3(100, 100, 10); // Placeholder coord
+
+            // Dynamic destination on street
+            Vector3 farAway = Game.Player.Character.Position + new Vector3(_rnd.Next(-2000, 2000), _rnd.Next(-2000, 2000), 0);
+            _destination = World.GetNextPositionOnStreet(farAway, true);
+
             _destBlip = World.CreateBlip(_destination);
             _destBlip.ShowRoute = true;
+            _destBlip.Color = BlipColor.Red;
+            _destBlip.Name = "Drop Off";
 
-            _drugVan = World.CreateVehicle(VehicleHash.Burrito3, Game.Player.Character.Position + Game.Player.Character.ForwardVector * 5);
+            // Spawn Van
+            Vector3 vanSpawn = World.GetNextPositionOnStreet(Game.Player.Character.Position + new Vector3(10, 10, 0), true);
+            _drugVan = World.CreateVehicle(VehicleHash.Burrito3, vanSpawn);
+            if (_drugVan != null)
+            {
+                _drugVan.AddBlip().Name = "Drug Van";
+            }
+
             _timeLimit = 300f; // 5 mins
 
             GTA.UI.Notification.Show("Get in the van and drive to the drop-off! Avoid the cops.");
@@ -38,13 +57,12 @@ namespace RoleplayOverhaul.Activities.Illegal
                 return;
             }
 
-            if (_drugVan.IsDead)
+            if (_drugVan == null || !_drugVan.Exists() || _drugVan.IsDead)
             {
                 FailMission("Van destroyed.");
                 return;
             }
 
-            // Fixed World.GetDistance usage to Vector3.Distance
             if (Game.Player.Character.IsInVehicle(_drugVan) && Vector3.Distance(_drugVan.Position, _destination) < 10f)
             {
                 CompleteMission();

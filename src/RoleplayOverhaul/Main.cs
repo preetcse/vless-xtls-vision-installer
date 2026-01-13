@@ -1,5 +1,6 @@
 using System;
 using GTA;
+using GTA.Math; // Added for Vector3
 using RoleplayOverhaul.Core;
 using RoleplayOverhaul.Items;
 using RoleplayOverhaul.Jobs;
@@ -20,6 +21,9 @@ namespace RoleplayOverhaul
         private GridInventory _inventory;
         private InventoryMenu _inventoryMenu;
         private TruckingJob _truckingJob;
+
+        // UI
+        private JobMenu _jobMenu;
 
         // Legacy Systems (Keeping for now but refactoring)
         private LicenseManager _licenseManager;
@@ -61,6 +65,7 @@ namespace RoleplayOverhaul
         private DrugRun _drugRun;
         private GangRaidManager _gangRaid;
         private KidnappingManager _kidnappingManager;
+        private GymActivity _gymActivity;
 
         public RoleplayMod()
         {
@@ -77,9 +82,8 @@ namespace RoleplayOverhaul
             // Phase 3: Jobs
             _truckingJob = new TruckingJob();
 
-            // Legacy Initialization (To keep code valid for now)
-            // Note: In a full refactor, many of these would be replaced by the new systems
-            _licenseManager = new LicenseManager(new Items.Inventory(10, 10)); // Dummy passing
+            // Legacy Initialization with Unified Inventory
+            _licenseManager = new LicenseManager(_inventory); // FIXED: Uses GridInventory now
             _jobManager = new JobManager();
             _crimeManager = new Police.CrimeManager();
             _dispatchManager = new Police.DispatchManager(_crimeManager);
@@ -88,6 +92,10 @@ namespace RoleplayOverhaul
             _gangManager = new GangManager();
             _propertyManager = new PropertyManager();
             _heistManager = new Missions.HeistManager();
+
+            // Register Heist with Unified Inventory
+            _heistManager.RegisterHeist(new Missions.FleecaBankHeist(_crimeManager, _inventory));
+
             _activityManager = new Activities.ActivityManager();
             _careerManager = new Core.CareerManager();
             _wardrobeManager = new Core.WardrobeManager();
@@ -114,9 +122,9 @@ namespace RoleplayOverhaul
             _gangRaid = new GangRaidManager();
             _kidnappingManager = new KidnappingManager();
             _interactionSystem = new InteractionSystem(_kidnappingManager);
+            _gymActivity = new GymActivity(_xpManager);
 
             // Wiring Up Missing Systems (Jobs & Crafting)
-            // We use the new Inventory for crafting
             _craftingManager = new CraftingManager(_inventory);
             _craftingMenu = new CraftingMenu(_inventory, _craftingManager);
 
@@ -125,11 +133,15 @@ namespace RoleplayOverhaul
             KeyDown += OnKeyDown;
 
             // Load Jobs (Wiring the 30+ jobs)
-            var allJobs = JobLibrary.CreateAllJobs(_crimeManager);
+            var allJobs = JobLibrary.CreateAllJobs(_crimeManager, _xpManager);
             foreach(var job in allJobs)
             {
                 _jobManager.RegisterJob(job);
             }
+
+            // Setup Job Menu
+            _jobMenu = new JobMenu(_jobManager);
+            _jobMenu.SetJobs(allJobs);
 
             SetupInitialState();
         }
@@ -149,9 +161,10 @@ namespace RoleplayOverhaul
                 // New Systems
                 _truckingJob.OnTick();
                 _inventoryMenu.Draw();
+                _jobMenu.Draw(); // Draw Job Menu
 
                 // Legacy Systems
-                _jobManager.OnTick(); // Now runs the 30+ jobs
+                _jobManager.OnTick();
                 _licenseManager.Update();
                 _crimeManager.Update();
                 _dispatchManager.OnTick();
@@ -180,11 +193,18 @@ namespace RoleplayOverhaul
                 _drugRun.OnTick();
                 _gangRaid.OnTick();
                 _kidnappingManager.OnTick();
+                _gymActivity.OnTick();
 
                 // Crafting
                 _craftingManager.OnTick();
                 _craftingMenu.Draw();
                 _craftingMenu.HandleInput();
+
+                // DMV Check (Davis)
+                if (Vector3.Distance(Game.Player.Character.Position, new Vector3(-54, -1111, 26)) < 3.0f)
+                {
+                    _licenseManager.DrawMenu();
+                }
             }
             catch (Exception ex)
             {
@@ -202,6 +222,13 @@ namespace RoleplayOverhaul
 
             // Handle Menu Input
             _inventoryMenu.HandleInput(e);
+            _jobMenu.HandleInput(e); // Job Menu Input
+
+            // Job Menu Toggle
+            if (e.KeyCode == Keys.J)
+            {
+                _jobMenu.Toggle();
+            }
 
             // Crafting Toggle
             if (e.KeyCode == Keys.F4)

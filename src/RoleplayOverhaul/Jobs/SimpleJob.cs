@@ -80,7 +80,8 @@ namespace RoleplayOverhaul.Jobs
                 {
                     int pay = 50;
                     GTA.Game.Player.Money += pay;
-                    GTA.UI.Notification.Show($"Paid ${pay} for {Name} work.");
+                    AwardXP(RoleplayOverhaul.Core.Progression.ExperienceManager.Skill.Global, 20);
+                    GTA.UI.Notification.Show($"Paid ${pay} + 20XP for {Name} work.");
                 }
             }
         }

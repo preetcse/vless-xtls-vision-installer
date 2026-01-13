@@ -72,8 +72,9 @@ namespace RoleplayOverhaul.Jobs
                     // Action
                     GTA.Game.Player.Money += 500;
                     _crimeManager.ReportCrime(new Crime(CrimeType.GrandTheftAuto, GTA.Game.Player.Character.Position)); // Generic crime
+                    AwardXP(RoleplayOverhaul.Core.Progression.ExperienceManager.Skill.Strength, 50);
 
-                    GTA.UI.Screen.ShowSubtitle("Success! Police are alerted.");
+                    GTA.UI.Screen.ShowSubtitle("Success! Police are alerted. +50XP");
                     SetNextTask();
                 }
             }

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using RoleplayOverhaul.Items;
-using GTA; // For UI and Input
+using RoleplayOverhaul.Core.Inventory; // New System
+using GTA;
 
 namespace RoleplayOverhaul.Core
 {
@@ -12,7 +13,7 @@ namespace RoleplayOverhaul.Core
         Hunting,
         Flying,
         Commercial,
-        HealthInsurance // Treated as a license for logic simplicity
+        HealthInsurance
     }
 
     public class LicenseTest
@@ -26,7 +27,7 @@ namespace RoleplayOverhaul.Core
         {
             Type = type;
             IsActive = false;
-            TotalCheckpoints = 10; // Default
+            TotalCheckpoints = 10;
         }
 
         public void Start()
@@ -58,7 +59,6 @@ namespace RoleplayOverhaul.Core
             if (success)
             {
                 GTA.UI.Screen.ShowSubtitle($"Passed {Type} Test!");
-                // Callback to manager to issue license would happen here
             }
             else
             {
@@ -69,11 +69,11 @@ namespace RoleplayOverhaul.Core
 
     public class LicenseManager
     {
-        private Inventory _playerInventory;
+        private GridInventory _playerInventory; // Updated Dependency
         private LicenseTest _activeTest;
         private const int LICENSE_VALIDITY_DAYS = 30;
 
-        public LicenseManager(Inventory inventory)
+        public LicenseManager(GridInventory inventory)
         {
             _playerInventory = inventory;
         }
@@ -81,14 +81,17 @@ namespace RoleplayOverhaul.Core
         public bool HasValidLicense(LicenseType type)
         {
             string id = "license_" + type.ToString().ToLower();
-            var stack = _playerInventory.Slots.Find(s => s.Item.Id == id);
 
-            if (stack == null) return false;
-
-            if (stack.Item is LicenseItem lic)
+            // Search GridInventory slots
+            foreach(var slot in _playerInventory.Slots)
             {
-                 // Check expiry
-                 return lic.ExpiryDate > DateTime.Now;
+                if (slot != null && slot.ID == id)
+                {
+                    if (slot is LicenseItem lic)
+                    {
+                        return lic.ExpiryDate > DateTime.Now;
+                    }
+                }
             }
             return false;
         }
@@ -109,12 +112,10 @@ namespace RoleplayOverhaul.Core
         {
             if (_activeTest != null && _activeTest.IsActive)
             {
-                // Logic to simulate passing checkpoints for demonstration
-                // In a real game, this would check distance to markers
-                if (GTA.Game.GameTime % 5000 == 0) // Every 5 seconds mock checkpoint
+                if (GTA.Game.GameTime % 5000 == 0)
                 {
                      _activeTest.PassCheckpoint();
-                     if (!_activeTest.IsActive) // Test finished
+                     if (!_activeTest.IsActive)
                      {
                          IssueLicense(_activeTest.Type);
                          _activeTest = null;
@@ -126,7 +127,10 @@ namespace RoleplayOverhaul.Core
         public void IssueLicense(LicenseType type)
         {
             string id = "license_" + type.ToString().ToLower();
-            _playerInventory.RemoveItem(id, 1); // clear old
+
+            // Remove old license if exists (Renew)
+            int count = _playerInventory.GetItemCount(id);
+            if (count > 0) _playerInventory.RemoveItem(id, count);
 
             var newLicense = new LicenseItem(
                 id,
@@ -135,7 +139,7 @@ namespace RoleplayOverhaul.Core
                 DateTime.Now.AddDays(LICENSE_VALIDITY_DAYS)
             );
 
-            _playerInventory.AddItem(newLicense, 1);
+            _playerInventory.AddItem(newLicense);
             GTA.UI.Screen.ShowSubtitle($"Issued {type} License. Valid for 30 days.");
         }
 
@@ -144,6 +148,27 @@ namespace RoleplayOverhaul.Core
              string id = "license_" + type.ToString().ToLower();
              _playerInventory.RemoveItem(id, 1);
              GTA.UI.Screen.ShowSubtitle($"Revoked {type} License.");
+        }
+
+        // DMV Menu Logic (Simple UI)
+        public void DrawMenu()
+        {
+            // Simple text menu for DMV
+             GTA.UI.Screen.ShowHelpText("Press ~INPUT_CONTEXT~ to Open DMV Menu");
+             if (GTA.Game.IsControlJustPressed(GTA.Control.Context))
+             {
+                 // Mock buying insurance
+                 if (GTA.Game.Player.Money >= 500)
+                 {
+                     GTA.Game.Player.Money -= 500;
+                     IssueLicense(LicenseType.HealthInsurance);
+                     GTA.UI.Notification.Show("Purchased Health Insurance ($500)");
+                 }
+                 else
+                 {
+                     GTA.UI.Notification.Show("Need $500 for Insurance.");
+                 }
+             }
         }
     }
 }

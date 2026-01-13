@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using GTA.Math;
 using RoleplayOverhaul.Police;
+using RoleplayOverhaul.Core.Progression;
 
 namespace RoleplayOverhaul.Jobs
 {
     public static class JobLibrary
     {
-        public static List<IJob> CreateAllJobs(CrimeManager crimeManager)
+        public static List<IJob> CreateAllJobs(CrimeManager crimeManager, ExperienceManager xpManager)
         {
              var jobs = new List<IJob>();
 
@@ -28,19 +29,15 @@ namespace RoleplayOverhaul.Jobs
             jobs.Add(new FirefighterJob());
             jobs.Add(new PoliceJob());
 
-            // Explicit spawns for water/beach jobs to avoid "Boats on Land" bugs
+            // Explicit spawns for water/beach jobs
             jobs.Add(new SimpleJob("Coast Guard", "Patrol the waters.", "predator", new Vector3(-800f, -1400f, 0f)));
             jobs.Add(new SimpleJob("Lifeguard", "Watch over the beach.", "lguard", new Vector3(-1600f, -1000f, 5f)));
 
             // 3. Manual Labor & Harvesting
             jobs.Add(new DeliveryJob("Miner", "rubble"));
-            jobs.Add(new DeliveryJob("Lumberjack", "log")); // Will spawn generic street, acceptable for now
+            jobs.Add(new DeliveryJob("Lumberjack", "log"));
             jobs.Add(new DeliveryJob("Farmer", "tractor"));
-            jobs.Add(new DeliveryJob("Fisherman", "tug")); // Should probably be water, but Tug is a boat.
-                                                           // DeliveryJob uses Street Spawn. This is a bug.
-                                                           // Fix: Use SimpleJob for Fisherman or fix DeliveryJob for boats.
-                                                           // I'll swap Fisherman to SimpleJob with fixed spawn.
-            jobs.Add(new SimpleJob("Fisherman", "Catch fish.", "tug", new Vector3(-100, -1000, 0))); // Marina
+            jobs.Add(new SimpleJob("Fisherman", "Catch fish.", "tug", new Vector3(-100, -1000, 0)));
 
             jobs.Add(new DeliveryJob("Construction Worker", "mixer"));
             jobs.Add(new DeliveryJob("Oil Tycoon", "tanker"));
@@ -56,7 +53,16 @@ namespace RoleplayOverhaul.Jobs
             // 5. Service Industry
             jobs.Add(new SimpleJob("Mechanic", "Repair player vehicles.", "flatbed"));
             jobs.Add(new SimpleJob("Reporter", "Film news events.", "newsvan"));
-            jobs.Add(new SimpleJob("Flight Instructor", "Teach others to fly.", "duster", new Vector3(-1000, -3000, 15))); // Airport
+            jobs.Add(new SimpleJob("Flight Instructor", "Teach others to fly.", "duster", new Vector3(-1000, -3000, 15)));
+
+            // Inject XP Manager
+            foreach (var job in jobs)
+            {
+                if (job is JobBase jb)
+                {
+                    jb.XPManager = xpManager;
+                }
+            }
 
             return jobs;
         }

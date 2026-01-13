@@ -1,5 +1,6 @@
 using System;
 using GTA;
+using RoleplayOverhaul.Core.Progression;
 
 namespace RoleplayOverhaul.Jobs
 {
@@ -16,6 +17,7 @@ namespace RoleplayOverhaul.Jobs
     {
         public string Name { get; protected set; }
         public bool IsActive { get; private set; }
+        public ExperienceManager XPManager { get; set; } // Property Injection
 
         protected JobBase(string name)
         {
@@ -36,5 +38,13 @@ namespace RoleplayOverhaul.Jobs
         }
 
         public abstract void OnTick();
+
+        protected void AwardXP(ExperienceManager.Skill skill, int amount)
+        {
+            if (XPManager != null)
+            {
+                XPManager.AddXP(skill, amount);
+            }
+        }
     }
 }

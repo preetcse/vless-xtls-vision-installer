@@ -104,7 +104,8 @@ namespace RoleplayOverhaul.Jobs
                     }
 
                     GTA.Game.Player.Money += 300;
-                    GTA.UI.Screen.ShowSubtitle("Delivery Complete! +$300");
+                    AwardXP(RoleplayOverhaul.Core.Progression.ExperienceManager.Skill.Trucking, 100);
+                    GTA.UI.Screen.ShowSubtitle("Delivery Complete! +$300 +100XP");
                     SetNextDestination();
                 }
             }
