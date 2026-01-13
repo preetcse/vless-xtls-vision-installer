@@ -128,6 +128,7 @@ namespace GTA
         {
             public static float Width { get; } = 1920;
             public static float Height { get; } = 1080;
+            public static System.Drawing.Point MousePosition { get; } = new System.Drawing.Point(0,0);
             public static void ShowSubtitle(string message, int duration = 2500) { }
             public static void ShowHelpText(string message, int duration = -1, bool beep = true, bool looped = false) { }
         }

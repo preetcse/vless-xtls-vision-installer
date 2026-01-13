@@ -26,6 +26,9 @@ namespace RoleplayOverhaul
         private Banking.ATMManager _atmManager;
         private Banking.BankInterior _bankInterior;
         private ConfigManager _configManager;
+        private Activities.ActivityManager _activityManager;
+        private Core.VehicleManager _vehicleManager;
+        private Core.CareerManager _careerManager;
 
         public RoleplayMod()
         {
@@ -44,8 +47,17 @@ namespace RoleplayOverhaul
             _propertyManager = new PropertyManager();
             _characterManager = new CharacterManager();
             _heistManager = new Missions.HeistManager();
+            _activityManager = new Activities.ActivityManager();
+            _careerManager = new Core.CareerManager();
 
-            // Banking Systems
+            // Banking & Vehicle Systems
+            _bankingManager = new Banking.BankingManager();
+            _bankingManager.AutoBankIncome = _configManager.AutoBank;
+
+            _billManager = new Banking.BillManager(_bankingManager);
+            _atmManager = new Banking.ATMManager(_bankingManager);
+            _bankInterior = new Banking.BankInterior(_bankingManager);
+            _vehicleManager = new Core.VehicleManager(_bankingManager);
             _bankingManager = new Banking.BankingManager();
             _bankingManager.AutoBankIncome = _configManager.AutoBank;
 
@@ -110,6 +122,8 @@ namespace RoleplayOverhaul
             _billManager.OnTick();
             _atmManager.OnTick();
             _bankInterior.OnTick();
+            _vehicleManager.OnTick();
+            _activityManager.OnTick();
 
             // Check for Arrest
             if (_crimeManager.WantedStars > 0 && GTA.Game.Player.WantedLevel == 0 && _prisonManager.SentenceTimeRemaining == 0)
@@ -163,6 +177,12 @@ namespace RoleplayOverhaul
             if (e.KeyCode == System.Windows.Forms.Keys.B)
             {
                 _uiManager.ToggleBankingApp();
+            }
+
+            // Start Activity Debug
+            if (e.KeyCode == System.Windows.Forms.Keys.Z)
+            {
+                _activityManager.StartActivity("Zombie Survival");
             }
         }
     }

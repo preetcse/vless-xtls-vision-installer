@@ -72,5 +72,20 @@ namespace RoleplayOverhaul.Core
              Sleep = Math.Min(100, Sleep + (hours * 10));
              GTA.UI.Screen.ShowSubtitle("You feel rested.");
         }
+
+        public void CookFood(string ingredients)
+        {
+            // Simple crafting logic
+            if (ingredients == "meat_veg")
+            {
+                // Give cooked meal
+                GTA.UI.Screen.ShowSubtitle("Cooked a delicious Stew! +Hunger");
+                Hunger = Math.Min(100, Hunger + 50);
+            }
+            else
+            {
+                GTA.UI.Screen.ShowSubtitle("Burnt it. Useless.");
+            }
+        }
     }
 }

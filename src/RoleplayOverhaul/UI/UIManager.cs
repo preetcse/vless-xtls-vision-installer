@@ -64,18 +64,10 @@ namespace RoleplayOverhaul.UI
         {
             if (!_isVisible) return;
 
-            // In a real environment we would get the mouse cursor position
-            // Since we are mocking dependencies, we'll simulate a click on the first slot for demonstration
-            // if no cursor logic is available.
-
-            // However, to make this logic robust for the actual mod, we implement the loop:
-
-            // Mock Mouse Position (Center of Slot 0 for testing)
-            float mouseX = _startPos.X + PADDING + 10;
-            float mouseY = _startPos.Y + PADDING + 10;
-
-            // Note: In real Game, use: Point mousePos = GTA.UI.Screen.MousePosition;
-            // mouseX = mousePos.X; mouseY = mousePos.Y;
+            // Get Real Mouse Position (Supported by both Game and Stub now)
+            Point mousePos = GTA.UI.Screen.MousePosition;
+            float mouseX = mousePos.X;
+            float mouseY = mousePos.Y;
 
             // Check collision with slots
             for (int i = 0; i < _inventory.MaxSlots; i++)
