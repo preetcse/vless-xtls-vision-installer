@@ -6,6 +6,8 @@ set -Eeuo pipefail
 
 SCRIPT_VERSION="1.0.0"
 STATE_FILE="/etc/xray/bootstrap-state.env"
+DEFAULT_PROFILE_JSON_FILE="/etc/xray/bootstrap-options.json"
+PROFILE_JSON_FILE="$DEFAULT_PROFILE_JSON_FILE"
 XRAY_DIR="/etc/xray"
 XRAY_CONFIG_FILE="/etc/xray/config.json"
 XRAY_SERVICE_FILE="/etc/systemd/system/xray.service"
@@ -37,6 +39,36 @@ fi
 MODE="install"
 NON_INTERACTIVE=false
 SHORT_ID_COUNT_CLI=""
+AUTO_PROFILE=false
+
+# Embedded fallback profile template used for portable --auto installs when the
+# default profile file does not exist yet on a new machine.
+EMBEDDED_PROFILE_JSON=$(cat <<'EOF'
+{
+  "profile_format": "1",
+  "generated_at_utc": "2026-02-11T03:52:28Z",
+  "script_version": "1.0.0",
+  "SERVER_NAME": "www.microsoft.com",
+  "DEST_ENDPOINT": "www.microsoft.com:443",
+  "LISTEN_PORT": "443",
+  "FALLBACK_PORT": "",
+  "FIREWALL_STYLE": "nftables",
+  "SSH_PORT": "22",
+  "CHANGE_SSH_PORT": "no",
+  "HAS_SSH_KEYS": "no",
+  "DISABLE_PASSWORD_AUTH": "no",
+  "FAIL2BAN_ENABLED": "no",
+  "UNATTENDED_UPGRADES_ENABLED": "yes",
+  "XRAY_UPDATE_POLICY": "weekly",
+  "LOG_PROFILE": "minimal",
+  "PROFILE_NAME": "__PROFILE_NAME__",
+  "SHORT_ID_LABEL": "main",
+  "SHORT_ID_COUNT": "3",
+  "BLOCK_PRIVATE_OUTBOUND": "no",
+  "CAMOUFLAGE_WEB_PORT": "18080"
+}
+EOF
+)
 
 # Runtime settings/state (loaded from file or wizard)
 OS_ID=""
@@ -101,7 +133,7 @@ trap 'log_warn "Interrupted"; exit 130' INT TERM
 
 usage() {
   cat <<EOF
-Usage: $0 [install|update|repair|status|diagnose|reprint|rotate-shortid|uninstall] [--non-interactive] [--shortid-count N]
+Usage: $0 [install|update|repair|status|diagnose|reprint|rotate-shortid|uninstall] [--non-interactive] [--shortid-count N] [--auto] [--profile-json PATH]
 
 Modes:
   install    Interactive wizard install/reconfigure (default)
@@ -112,6 +144,12 @@ Modes:
   reprint    Reprint saved client configs without regenerating secrets
   rotate-shortid  Rotate REALITY shortIds only (preserve UUID/keypair)
   uninstall  Remove Xray service/config with confirmation
+
+Options:
+  --shortid-count N   Override REALITY shortId count (1-16)
+  --profile-json PATH Use this JSON profile file path (default: ${PROFILE_JSON_FILE})
+  --auto              For install mode: load options from JSON profile and skip wizard prompts
+  --non-interactive   Disable interactive prompts (install requires --auto)
 EOF
 }
 
@@ -203,6 +241,11 @@ validate_short_id_value() {
   [[ "$sid" =~ ^[0-9a-fA-F]{1,16}$ ]]
 }
 
+validate_yes_no_value() {
+  local v="$1"
+  [[ "$v" == "yes" || "$v" == "no" ]]
+}
+
 short_ids_count_from_csv() {
   local csv="$1"
   local count=0
@@ -212,7 +255,7 @@ short_ids_count_from_csv() {
   for token in "${_tokens[@]}"; do
     token="$(trim "$token")"
     [[ -z "$token" ]] && continue
-    ((count++))
+    ((count+=1))
   done
   printf '%s' "$count"
 }
@@ -414,6 +457,238 @@ prompt_input() {
   fi
 }
 
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+profile_json_get_string() {
+  local file="$1"
+  local key="$2"
+
+  awk -v key="$key" '
+    BEGIN {
+      found = 0
+    }
+    {
+      if ($0 ~ "^[[:space:]]*\"" key "\"[[:space:]]*:[[:space:]]*\"") {
+        line = $0
+        sub(/^[^:]*:[[:space:]]*"/, "", line)
+        out = ""
+        esc = 0
+        for (i = 1; i <= length(line); i++) {
+          c = substr(line, i, 1)
+          if (esc == 1) {
+            if (c == "n") {
+              out = out "\n"
+            } else if (c == "r") {
+              out = out "\r"
+            } else if (c == "t") {
+              out = out "\t"
+            } else {
+              out = out c
+            }
+            esc = 0
+          } else if (c == "\\") {
+            esc = 1
+          } else if (c == "\"") {
+            print out
+            found = 1
+            exit
+          } else {
+            out = out c
+          }
+        }
+      }
+    }
+    END {
+      if (!found) {
+        exit 1
+      }
+    }
+  ' "$file"
+}
+
+validate_profile_options() {
+  local source_label="$1"
+  [[ -n "$SERVER_NAME" ]] || die "Profile ${source_label}: SERVER_NAME cannot be empty"
+  validate_hostport "$DEST_ENDPOINT" || die "Profile ${source_label}: invalid DEST_ENDPOINT (${DEST_ENDPOINT})"
+  validate_port "$LISTEN_PORT" || die "Profile ${source_label}: invalid LISTEN_PORT (${LISTEN_PORT})"
+
+  if [[ -n "$FALLBACK_PORT" ]]; then
+    validate_port "$FALLBACK_PORT" || die "Profile ${source_label}: invalid FALLBACK_PORT (${FALLBACK_PORT})"
+    [[ "$FALLBACK_PORT" != "$LISTEN_PORT" ]] || die "Profile ${source_label}: FALLBACK_PORT cannot equal LISTEN_PORT"
+  fi
+
+  case "$FIREWALL_STYLE" in
+    nftables|ufw) ;;
+    *) die "Profile ${source_label}: invalid FIREWALL_STYLE (${FIREWALL_STYLE})" ;;
+  esac
+
+  validate_yes_no_value "$CHANGE_SSH_PORT" || die "Profile ${source_label}: CHANGE_SSH_PORT must be yes/no"
+  if [[ "$CHANGE_SSH_PORT" == "no" ]]; then
+    SSH_PORT="22"
+  fi
+  validate_port "$SSH_PORT" || die "Profile ${source_label}: invalid SSH_PORT (${SSH_PORT})"
+  if [[ "$SSH_PORT" == "$LISTEN_PORT" || ( -n "$FALLBACK_PORT" && "$SSH_PORT" == "$FALLBACK_PORT" ) ]]; then
+    die "Profile ${source_label}: SSH_PORT must differ from Xray listen/fallback ports"
+  fi
+
+  local key val
+  for key in HAS_SSH_KEYS DISABLE_PASSWORD_AUTH FAIL2BAN_ENABLED UNATTENDED_UPGRADES_ENABLED BLOCK_PRIVATE_OUTBOUND; do
+    val="${!key}"
+    validate_yes_no_value "$val" || die "Profile ${source_label}: ${key} must be yes/no"
+  done
+  if [[ "$HAS_SSH_KEYS" == "no" ]]; then
+    DISABLE_PASSWORD_AUTH="no"
+  fi
+
+  case "$XRAY_UPDATE_POLICY" in
+    manual|weekly|daily) ;;
+    *) die "Profile ${source_label}: invalid XRAY_UPDATE_POLICY (${XRAY_UPDATE_POLICY})" ;;
+  esac
+
+  case "$LOG_PROFILE" in
+    minimal|verbose) ;;
+    *) die "Profile ${source_label}: invalid LOG_PROFILE (${LOG_PROFILE})" ;;
+  esac
+
+  [[ -n "$PROFILE_NAME" ]] || die "Profile ${source_label}: PROFILE_NAME cannot be empty"
+  [[ -n "$SHORT_ID_LABEL" ]] || SHORT_ID_LABEL="main"
+  validate_short_id_count "$SHORT_ID_COUNT" || die "Profile ${source_label}: invalid SHORT_ID_COUNT (${SHORT_ID_COUNT})"
+  validate_port "$CAMOUFLAGE_WEB_PORT" || die "Profile ${source_label}: invalid CAMOUFLAGE_WEB_PORT (${CAMOUFLAGE_WEB_PORT})"
+  if [[ "$CAMOUFLAGE_WEB_PORT" == "$LISTEN_PORT" || ( -n "$FALLBACK_PORT" && "$CAMOUFLAGE_WEB_PORT" == "$FALLBACK_PORT" ) ]]; then
+    die "Profile ${source_label}: CAMOUFLAGE_WEB_PORT must differ from Xray listen/fallback ports"
+  fi
+}
+
+load_options_profile() {
+  local file="${1:-$PROFILE_JSON_FILE}"
+  [[ -f "$file" ]] || return 1
+
+  local required_keys=(
+    SERVER_NAME
+    DEST_ENDPOINT
+    LISTEN_PORT
+    FIREWALL_STYLE
+    SSH_PORT
+    CHANGE_SSH_PORT
+    HAS_SSH_KEYS
+    DISABLE_PASSWORD_AUTH
+    FAIL2BAN_ENABLED
+    UNATTENDED_UPGRADES_ENABLED
+    XRAY_UPDATE_POLICY
+    LOG_PROFILE
+    PROFILE_NAME
+    SHORT_ID_LABEL
+    SHORT_ID_COUNT
+    BLOCK_PRIVATE_OUTBOUND
+  )
+
+  local key value
+  for key in "${required_keys[@]}"; do
+    if value="$(profile_json_get_string "$file" "$key")"; then
+      printf -v "$key" '%s' "$value"
+    else
+      die "Profile ${file} is missing required key: ${key}"
+    fi
+  done
+
+  if value="$(profile_json_get_string "$file" "FALLBACK_PORT")"; then
+    FALLBACK_PORT="$value"
+  else
+    FALLBACK_PORT=""
+  fi
+
+  if value="$(profile_json_get_string "$file" "CAMOUFLAGE_WEB_PORT")"; then
+    CAMOUFLAGE_WEB_PORT="$value"
+  fi
+
+  if [[ -n "$SHORT_ID_COUNT_CLI" ]]; then
+    SHORT_ID_COUNT="$SHORT_ID_COUNT_CLI"
+  fi
+
+  validate_profile_options "$file"
+  log_ok "Loaded install options profile: ${file}"
+  return 0
+}
+
+materialize_embedded_profile_if_needed() {
+  local file="${1:-$PROFILE_JSON_FILE}"
+  local dir host_short profile_name profile_json
+
+  [[ "$file" == "$DEFAULT_PROFILE_JSON_FILE" ]] || return 1
+  [[ -f "$file" ]] && return 0
+  [[ -n "${EMBEDDED_PROFILE_JSON:-}" ]] || return 1
+
+  host_short="$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)"
+  host_short="$(trim "$host_short")"
+  [[ -n "$host_short" ]] || host_short="server"
+  host_short="$(printf '%s' "$host_short" | tr -cs 'A-Za-z0-9._-' '-')"
+  host_short="${host_short#-}"
+  host_short="${host_short%-}"
+  [[ -n "$host_short" ]] || host_short="server"
+  profile_name="reality-${host_short}"
+  profile_json="${EMBEDDED_PROFILE_JSON/__PROFILE_NAME__/$profile_name}"
+
+  dir="$(dirname "$file")"
+  if [[ ! -d "$dir" ]]; then
+    install -d -m 700 "$dir"
+    chown root:root "$dir"
+  fi
+
+  umask 077
+  printf '%s\n' "$profile_json" >"$file"
+  chmod 600 "$file"
+  log_info "Created ${file} from embedded profile defaults"
+  return 0
+}
+
+save_options_profile() {
+  local dir generated_at
+  dir="$(dirname "$PROFILE_JSON_FILE")"
+  if [[ ! -d "$dir" ]]; then
+    install -d -m 700 "$dir"
+    chown root:root "$dir"
+  fi
+  generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  umask 077
+  {
+    printf '{\n'
+    printf '  "profile_format": "%s",\n' "$(json_escape "1")"
+    printf '  "generated_at_utc": "%s",\n' "$(json_escape "$generated_at")"
+    printf '  "script_version": "%s",\n' "$(json_escape "$SCRIPT_VERSION")"
+    printf '  "SERVER_NAME": "%s",\n' "$(json_escape "$SERVER_NAME")"
+    printf '  "DEST_ENDPOINT": "%s",\n' "$(json_escape "$DEST_ENDPOINT")"
+    printf '  "LISTEN_PORT": "%s",\n' "$(json_escape "$LISTEN_PORT")"
+    printf '  "FALLBACK_PORT": "%s",\n' "$(json_escape "$FALLBACK_PORT")"
+    printf '  "FIREWALL_STYLE": "%s",\n' "$(json_escape "$FIREWALL_STYLE")"
+    printf '  "SSH_PORT": "%s",\n' "$(json_escape "$SSH_PORT")"
+    printf '  "CHANGE_SSH_PORT": "%s",\n' "$(json_escape "$CHANGE_SSH_PORT")"
+    printf '  "HAS_SSH_KEYS": "%s",\n' "$(json_escape "$HAS_SSH_KEYS")"
+    printf '  "DISABLE_PASSWORD_AUTH": "%s",\n' "$(json_escape "$DISABLE_PASSWORD_AUTH")"
+    printf '  "FAIL2BAN_ENABLED": "%s",\n' "$(json_escape "$FAIL2BAN_ENABLED")"
+    printf '  "UNATTENDED_UPGRADES_ENABLED": "%s",\n' "$(json_escape "$UNATTENDED_UPGRADES_ENABLED")"
+    printf '  "XRAY_UPDATE_POLICY": "%s",\n' "$(json_escape "$XRAY_UPDATE_POLICY")"
+    printf '  "LOG_PROFILE": "%s",\n' "$(json_escape "$LOG_PROFILE")"
+    printf '  "PROFILE_NAME": "%s",\n' "$(json_escape "$PROFILE_NAME")"
+    printf '  "SHORT_ID_LABEL": "%s",\n' "$(json_escape "$SHORT_ID_LABEL")"
+    printf '  "SHORT_ID_COUNT": "%s",\n' "$(json_escape "$SHORT_ID_COUNT")"
+    printf '  "BLOCK_PRIVATE_OUTBOUND": "%s",\n' "$(json_escape "$BLOCK_PRIVATE_OUTBOUND")"
+    printf '  "CAMOUFLAGE_WEB_PORT": "%s"\n' "$(json_escape "$CAMOUFLAGE_WEB_PORT")"
+    printf '}\n'
+  } >"$PROFILE_JSON_FILE"
+
+  chmod 600 "$PROFILE_JSON_FILE"
+  log_ok "Saved install options profile: ${PROFILE_JSON_FILE}"
+}
+
 save_state() {
   safe_mkdir "$XRAY_DIR" 700
   umask 077
@@ -458,6 +733,7 @@ save_state() {
     printf "PUBLIC_IP=%q\n" "$PUBLIC_IP"
   } >"$STATE_FILE"
   chmod 600 "$STATE_FILE"
+  save_options_profile
 }
 
 load_state() {
@@ -1333,7 +1609,7 @@ generate_client_artifacts() {
   profile_safe="${profile_safe%_}"
   [[ -z "$profile_safe" ]] && profile_safe="reality"
 
-  local uri_primary uri_fallback
+  local uri_primary uri_fallback=""
   uri_primary="$(build_vless_uri "$server_host" "$LISTEN_PORT")"
   [[ -n "$FALLBACK_PORT" ]] && uri_fallback="$(build_vless_uri "$server_host" "$FALLBACK_PORT")"
 
@@ -2045,33 +2321,59 @@ run_wizard() {
 }
 
 install_mode() {
+  local using_profile="no"
+
   if [[ -f "$STATE_FILE" ]]; then
     load_state || true
-    print_existing_install_menu || true
-    case "$MODE" in
-      update) update_mode; return ;;
-      repair) repair_mode; return ;;
-      status) status_mode; return ;;
-      diagnose) diagnose_mode; return ;;
-      reprint) reprint_mode; return ;;
-      rotate-shortid) rotate_shortid_mode; return ;;
-      uninstall) uninstall_mode; return ;;
-      install) ;;
-      *) die "Unexpected mode transition: ${MODE}" ;;
-    esac
+    if [[ "$AUTO_PROFILE" != "true" ]]; then
+      print_existing_install_menu || true
+      case "$MODE" in
+        update) update_mode; return ;;
+        repair) repair_mode; return ;;
+        status) status_mode; return ;;
+        diagnose) diagnose_mode; return ;;
+        reprint) reprint_mode; return ;;
+        rotate-shortid) rotate_shortid_mode; return ;;
+        uninstall) uninstall_mode; return ;;
+        install) ;;
+        *) die "Unexpected mode transition: ${MODE}" ;;
+      esac
 
-    if prompt_yes_no "Reuse existing UUID/REALITY keys/shortIds?" "yes"; then
-      :
-    else
-      UUID=""
-      REALITY_PRIVATE_KEY=""
-      REALITY_PUBLIC_KEY=""
-      REALITY_SHORT_ID=""
-      REALITY_SHORT_IDS=""
+      if prompt_yes_no "Reuse existing UUID/REALITY keys/shortIds?" "yes"; then
+        :
+      else
+        UUID=""
+        REALITY_PRIVATE_KEY=""
+        REALITY_PUBLIC_KEY=""
+        REALITY_SHORT_ID=""
+        REALITY_SHORT_IDS=""
+      fi
     fi
   fi
 
-  run_wizard
+  if [[ "$AUTO_PROFILE" == "true" ]]; then
+    if ! load_options_profile "$PROFILE_JSON_FILE"; then
+      materialize_embedded_profile_if_needed "$PROFILE_JSON_FILE" || true
+      load_options_profile "$PROFILE_JSON_FILE" || die "Auto profile requested but file not found/readable: ${PROFILE_JSON_FILE}"
+    fi
+    using_profile="yes"
+  fi
+
+  if [[ "$using_profile" == "no" && -f "$PROFILE_JSON_FILE" ]]; then
+    if prompt_yes_no "Use saved install options from ${PROFILE_JSON_FILE} and skip wizard?" "yes"; then
+      load_options_profile "$PROFILE_JSON_FILE" || die "Failed loading options profile: ${PROFILE_JSON_FILE}"
+      using_profile="yes"
+    fi
+  fi
+
+  if [[ "$using_profile" == "yes" ]]; then
+    section "Auto install profile mode"
+    log_info "Using saved options from ${PROFILE_JSON_FILE}"
+    validate_reality_dest_connectivity
+  else
+    run_wizard
+  fi
+
   install_dependencies
   install_or_update_xray_binary
   ensure_identity_materials
@@ -2119,6 +2421,20 @@ parse_args() {
         SHORT_ID_COUNT_CLI="$SHORT_ID_COUNT"
         shift
         ;;
+      --auto)
+        AUTO_PROFILE=true
+        shift
+        ;;
+      --profile-json)
+        shift
+        (( $# > 0 )) || die "--profile-json requires a value"
+        PROFILE_JSON_FILE="$1"
+        shift
+        ;;
+      --profile-json=*)
+        PROFILE_JSON_FILE="${1#*=}"
+        shift
+        ;;
       -h|--help)
         usage
         exit 0
@@ -2134,6 +2450,7 @@ parse_args() {
     die "Unknown argument(s): ${args[*]}"
   fi
 
+  [[ -n "$PROFILE_JSON_FILE" ]] || die "Profile JSON path cannot be empty"
   validate_short_id_count "$SHORT_ID_COUNT" || die "Invalid shortId count: ${SHORT_ID_COUNT}. Allowed range: 1-16"
 }
 
@@ -2142,8 +2459,8 @@ main() {
   detect_os
   parse_args "$@"
 
-  if [[ "$NON_INTERACTIVE" == "true" && "$MODE" == "install" ]]; then
-    die "Non-interactive install is not supported. Use interactive install or explicit update mode."
+  if [[ "$NON_INTERACTIVE" == "true" && "$MODE" == "install" && "$AUTO_PROFILE" != "true" ]]; then
+    die "Non-interactive install requires --auto with a saved options profile."
   fi
 
   case "$MODE" in
