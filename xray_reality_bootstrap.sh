@@ -18,22 +18,37 @@ CLIENT_DIR="/root/xray-client-configs"
 SELF_INSTALLED_PATH="/usr/local/sbin/xray-reality-bootstrap"
 CAMOUFLAGE_SITE_DIR="/var/www/xray-camouflage"
 CAMOUFLAGE_NGINX_CONF="/etc/nginx/conf.d/xray-camouflage.conf"
+APT_UPDATED=false
 
 # Colors
 if [[ -t 1 ]]; then
   C_RESET='\033[0m'
   C_BOLD='\033[1m'
+  C_DIM='\033[2m'
   C_RED='\033[31m'
   C_GREEN='\033[32m'
   C_YELLOW='\033[33m'
   C_BLUE='\033[34m'
+  C_MAGENTA='\033[35m'
+  C_CYAN='\033[36m'
+  C_WHITE='\033[37m'
+  C_BG_BLUE='\033[44m'
+  C_BG_GREEN='\033[42m'
+  C_BG_RED='\033[41m'
 else
   C_RESET=''
   C_BOLD=''
+  C_DIM=''
   C_RED=''
   C_GREEN=''
   C_YELLOW=''
   C_BLUE=''
+  C_MAGENTA=''
+  C_CYAN=''
+  C_WHITE=''
+  C_BG_BLUE=''
+  C_BG_GREEN=''
+  C_BG_RED=''
 fi
 
 MODE="install"
@@ -109,11 +124,26 @@ PUBLIC_IP=""
 CAMOUFLAGE_WEB_PORT="18080"
 REPRINT_CMD="sudo ${SELF_INSTALLED_PATH} reprint"
 
-log_info() { printf "%b[INFO]%b %s\n" "$C_BLUE" "$C_RESET" "$*"; }
-log_warn() { printf "%b[WARN]%b %s\n" "$C_YELLOW" "$C_RESET" "$*"; }
-log_error() { printf "%b[ERROR]%b %s\n" "$C_RED" "$C_RESET" "$*" >&2; }
-log_ok() { printf "%b[OK]%b %s\n" "$C_GREEN" "$C_RESET" "$*"; }
-section() { printf "\n%b==>%b %s\n" "$C_BOLD$C_BLUE" "$C_RESET" "$*"; }
+log_info()  { printf "  %b%b i %b %s\n" "$C_BOLD" "$C_BLUE" "$C_RESET" "$*"; }
+log_warn()  { printf "  %b%b ! %b %s\n" "$C_BOLD" "$C_YELLOW" "$C_RESET" "$*"; }
+log_error() { printf "  %b%b x %b %s\n" "$C_BOLD" "$C_RED" "$C_RESET" "$*" >&2; }
+log_ok()    { printf "  %b%b + %b %s\n" "$C_BOLD" "$C_GREEN" "$C_RESET" "$*"; }
+log_step()  { printf "  %b%b > %b %s\n" "$C_BOLD" "$C_CYAN" "$C_RESET" "$*"; }
+
+section() {
+  local text="$*"
+  printf "\n"
+  printf "  %b%b  %s  %b\n" "$C_BOLD" "$C_WHITE" "$text" "$C_RESET"
+  printf "  %b" "$C_DIM"
+  printf '%*s' "$(( ${#text} + 4 ))" '' | tr ' ' '-'
+  printf "%b\n" "$C_RESET"
+}
+
+divider() {
+  printf "  %b" "$C_DIM"
+  printf '%60s' '' | tr ' ' '-'
+  printf "%b\n" "$C_RESET"
+}
 
 die() {
   log_error "$*"
@@ -132,25 +162,38 @@ trap 'on_error $LINENO' ERR
 trap 'log_warn "Interrupted"; exit 130' INT TERM
 
 usage() {
-  cat <<EOF
-Usage: $0 [install|update|repair|status|diagnose|reprint|rotate-shortid|uninstall] [--non-interactive] [--shortid-count N] [--auto] [--profile-json PATH]
-
-Modes:
-  install    Interactive wizard install/reconfigure (default)
-  update     Update Xray binary safely (preserves keys/config)
-  repair     Re-apply current state and hardening
-  status     Show service, listening ports, and firewall summary
-  diagnose   Unified diagnostics: config test, status, ports, firewall, recent errors
-  reprint    Reprint saved client configs without regenerating secrets
-  rotate-shortid  Rotate REALITY shortIds only (preserve UUID/keypair)
-  uninstall  Remove Xray service/config with confirmation
-
-Options:
-  --shortid-count N   Override REALITY shortId count (1-16)
-  --profile-json PATH Use this JSON profile file path (default: ${PROFILE_JSON_FILE})
-  --auto              For install mode: load options from JSON profile and skip wizard prompts
-  --non-interactive   Disable interactive prompts (install requires --auto)
-EOF
+  printf "\n"
+  printf "  %bUsage:%b %s <mode> [options]\n\n" "$C_BOLD" "$C_RESET" "$0"
+  printf "  %bModes:%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  printf "    %binstall%b         Interactive wizard install/reconfigure %b(default)%b\n" "$C_GREEN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %bupdate%b          Update Xray binary safely (preserves keys/config)\n" "$C_GREEN" "$C_RESET"
+  printf "    %brepair%b          Re-apply current state and hardening\n" "$C_GREEN" "$C_RESET"
+  printf "    %bstatus%b          Show service, listening ports, and firewall summary\n" "$C_GREEN" "$C_RESET"
+  printf "    %bdiagnose%b        Unified diagnostics dump\n" "$C_GREEN" "$C_RESET"
+  printf "    %breprint%b         Reprint saved client configs without regenerating secrets\n" "$C_GREEN" "$C_RESET"
+  printf "    %brotate-shortid%b  Rotate REALITY shortIds only (preserve UUID/keypair)\n" "$C_GREEN" "$C_RESET"
+  printf "    %buninstall%b       Remove Xray service/config with confirmation\n" "$C_RED" "$C_RESET"
+  printf "\n"
+  printf "  %bOptions:%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  printf "    --shortid-count N    Override REALITY shortId count (1-16)\n"
+  printf "    --profile-json PATH  Use this JSON profile file path\n"
+  printf "    --auto               Load options from JSON profile, skip wizard\n"
+  printf "    --non-interactive    Disable interactive prompts (install requires --auto)\n"
+  printf "    -V, --version        Print version and exit\n"
+  printf "    -h, --help           Show this help message\n"
+  printf "\n"
+  printf "  %bQuick start:%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  printf "    %b# Fresh install (interactive wizard)%b\n" "$C_DIM" "$C_RESET"
+  printf "    sudo bash %s install\n" "$0"
+  printf "\n"
+  printf "    %b# Automated install from saved profile%b\n" "$C_DIM" "$C_RESET"
+  printf "    sudo bash %s install --auto --non-interactive\n" "$0"
+  printf "\n"
+  printf "    %b# Day-2 operations%b\n" "$C_DIM" "$C_RESET"
+  printf "    sudo bash %s status\n" "$0"
+  printf "    sudo bash %s diagnose\n" "$0"
+  printf "    sudo bash %s update\n" "$0"
+  printf "\n"
 }
 
 is_tty() {
@@ -402,12 +445,12 @@ validate_reality_dest_connectivity() {
   fi
 
   if ! run_with_timeout 8 bash -c 'exec 3<>/dev/tcp/$1/$2' _ "$host" "$port" 2>/dev/null; then
-    die "Cannot reach DEST endpoint ${DEST_ENDPOINT} from this server. This causes client timeouts."
+    die "Cannot reach DEST endpoint ${DEST_ENDPOINT} from this server. Check DNS resolution and outbound firewall rules. This causes client timeouts."
   fi
 
   if command_exists openssl; then
     if ! run_with_timeout 12 openssl s_client -connect "$DEST_ENDPOINT" -servername "$SERVER_NAME" -brief </dev/null >/dev/null 2>&1; then
-      die "TLS probe failed for DEST ${DEST_ENDPOINT} with SNI ${SERVER_NAME}. Choose a different serverName/DEST pair."
+      die "TLS probe failed for DEST ${DEST_ENDPOINT} with SNI ${SERVER_NAME}. The target may not support TLS 1.3. Choose a different serverName/DEST pair."
     fi
   fi
 
@@ -642,9 +685,12 @@ materialize_embedded_profile_if_needed() {
     chown root:root "$dir"
   fi
 
+  local old_umask
+  old_umask="$(umask)"
   umask 077
   printf '%s\n' "$profile_json" >"$file"
   chmod 600 "$file"
+  umask "$old_umask"
   log_info "Created ${file} from embedded profile defaults"
   return 0
 }
@@ -658,6 +704,8 @@ save_options_profile() {
   fi
   generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+  local old_umask
+  old_umask="$(umask)"
   umask 077
   {
     printf '{\n'
@@ -686,11 +734,14 @@ save_options_profile() {
   } >"$PROFILE_JSON_FILE"
 
   chmod 600 "$PROFILE_JSON_FILE"
+  umask "$old_umask"
   log_ok "Saved install options profile: ${PROFILE_JSON_FILE}"
 }
 
 save_state() {
   safe_mkdir "$XRAY_DIR" 700
+  local old_umask
+  old_umask="$(umask)"
   umask 077
   {
     printf "# xray bootstrap state\n"
@@ -733,6 +784,7 @@ save_state() {
     printf "PUBLIC_IP=%q\n" "$PUBLIC_IP"
   } >"$STATE_FILE"
   chmod 600 "$STATE_FILE"
+  umask "$old_umask"
   save_options_profile
 }
 
@@ -769,9 +821,17 @@ detect_os() {
   esac
 }
 
+apt_update_once() {
+  if [[ "$APT_UPDATED" != "true" ]]; then
+    log_info "Refreshing package index..."
+    DEBIAN_FRONTEND=noninteractive apt-get update -y
+    APT_UPDATED=true
+  fi
+}
+
 apt_install() {
   local pkgs=("$@")
-  DEBIAN_FRONTEND=noninteractive apt-get update -y
+  apt_update_once
   DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${pkgs[@]}"
 }
 
@@ -785,7 +845,7 @@ ensure_qrencode() {
   fi
 
   log_info "Installing qrencode for QR output"
-  if DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 &&
+  if apt_update_once >/dev/null 2>&1 &&
      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qrencode >/dev/null 2>&1; then
     return 0
   fi
@@ -966,11 +1026,14 @@ install_or_update_xray_binary() {
 
   local tmpdir
   tmpdir="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmpdir'" RETURN
   local release_json="$tmpdir/release.json"
   local zip_file="$tmpdir/xray.zip"
   local dgst_file="$tmpdir/xray.dgst"
   local sha_file="$tmpdir/sha256sum.txt"
 
+  log_info "Fetching latest Xray release info..."
   download_to_file "https://api.github.com/repos/XTLS/Xray-core/releases/latest" "$release_json"
 
   local tag
@@ -987,6 +1050,7 @@ install_or_update_xray_binary() {
 
   [[ -n "$zip_url" ]] || die "Could not find release asset URL for ${XRAY_ASSET}"
 
+  log_info "Downloading Xray ${tag} (${XRAY_ASSET})..."
   download_to_file "$zip_url" "$zip_file"
 
   local expected_sha=""
@@ -1020,6 +1084,7 @@ install_or_update_xray_binary() {
 
   [[ -n "$expected_sha" ]] || die "Checksum verification data not found for ${XRAY_ASSET}; refusing install"
 
+  log_info "Verifying checksum..."
   local calculated_sha
   calculated_sha="$(sha256sum "$zip_file" | awk '{print tolower($1)}')"
   [[ "$calculated_sha" == "$expected_sha" ]] || die "Checksum mismatch for ${XRAY_ASSET}"
@@ -1033,7 +1098,6 @@ install_or_update_xray_binary() {
   [[ -f "$tmpdir/unpack/geosite.dat" ]] && install -m 644 "$tmpdir/unpack/geosite.dat" "$XRAY_SHARE_DIR/geosite.dat"
 
   XRAY_VERSION="$tag"
-  rm -rf "$tmpdir"
   log_ok "Xray ${XRAY_VERSION} installed/updated"
 }
 
@@ -1092,7 +1156,7 @@ ensure_identity_materials() {
   fi
   REALITY_SHORT_ID="$(primary_short_id_from_csv "$REALITY_SHORT_IDS")"
 
-  [[ -n "$UUID" && -n "$REALITY_PRIVATE_KEY" && -n "$REALITY_PUBLIC_KEY" && -n "$REALITY_SHORT_IDS" ]] || die "Failed generating identity materials"
+  [[ -n "$UUID" && -n "$REALITY_PRIVATE_KEY" && -n "$REALITY_PUBLIC_KEY" && -n "$REALITY_SHORT_IDS" ]] || die "Failed generating identity materials. Ensure ${XRAY_BIN} is installed and functional (try: ${XRAY_BIN} version)"
   local short_id_count_actual
   short_id_count_actual="$(short_ids_count_from_csv "$REALITY_SHORT_IDS")"
   log_ok "Identity materials ready (UUID + REALITY keypair + ${short_id_count_actual} shortId(s))"
@@ -1103,8 +1167,10 @@ set_sshd_option() {
   local value="$2"
   local conf="/etc/ssh/sshd_config"
 
+  # Escape sed delimiter in value to prevent injection
+  local escaped_value="${value//|/\\|}"
   if grep -qiE "^[#[:space:]]*${key}[[:space:]]+" "$conf"; then
-    sed -ri "s|^[#[:space:]]*${key}[[:space:]]+.*|${key} ${value}|I" "$conf"
+    sed -ri "s|^[#[:space:]]*${key}[[:space:]]+.*|${key} ${escaped_value}|I" "$conf"
   else
     printf '%s %s\n' "$key" "$value" >>"$conf"
   fi
@@ -1128,7 +1194,7 @@ harden_ssh() {
       fi
     done
   fi
-  [[ -n "$ssh_service" ]] || die "Neither ssh.service nor sshd.service found. Install/enable OpenSSH server first."
+  [[ -n "$ssh_service" ]] || die "Neither ssh.service nor sshd.service found. Install OpenSSH: apt install openssh-server"
 
   local conf="/etc/ssh/sshd_config"
   [[ -f "$conf" ]] || die "sshd_config not found"
@@ -1557,13 +1623,19 @@ EOF
 detect_public_ip() {
   local ip=""
   if command_exists curl; then
-    ip="$(curl -4fsSL --max-time 8 https://api.ipify.org || true)"
-    [[ -z "$ip" ]] && ip="$(curl -4fsSL --max-time 8 https://ifconfig.me || true)"
+    # Try IPv4 first
+    ip="$(curl -4fsSL --max-time 8 https://api.ipify.org 2>/dev/null || true)"
+    [[ -z "$ip" ]] && ip="$(curl -4fsSL --max-time 8 https://ifconfig.me 2>/dev/null || true)"
+    # Fall back to IPv6
+    if [[ -z "$ip" ]]; then
+      ip="$(curl -6fsSL --max-time 8 https://api6.ipify.org 2>/dev/null || true)"
+      [[ -z "$ip" ]] && ip="$(curl -6fsSL --max-time 8 https://ifconfig.me 2>/dev/null || true)"
+    fi
   elif command_exists wget; then
-    ip="$(wget -qO- https://api.ipify.org || true)"
+    ip="$(wget -qO- https://api.ipify.org 2>/dev/null || true)"
   fi
 
-  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ "$ip" =~ ^[0-9a-fA-F:]+$ ]]; then
     printf '%s' "$ip"
   else
     printf '%s' ""
@@ -1806,67 +1878,112 @@ EOF
   printf '%s\n' "$uri_primary" >"$CLIENT_DIR/.last_primary_uri"
   chmod 600 "$CLIENT_DIR/.last_primary_uri"
 
-  section "Client Handoff (Final Output)"
-  printf "============================================================\n"
-  printf "Profile: %s\n" "$PROFILE_NAME"
-  printf "Server public IP: %s\n" "${server_host}"
-  printf "Primary port: %s\n" "$LISTEN_PORT"
-  printf "Fallback port: %s\n" "${FALLBACK_PORT:-none}"
-  printf "REALITY serverName: %s\n" "$SERVER_NAME"
-  printf "REALITY dest: %s\n" "$DEST_ENDPOINT"
-  printf "Primary-port fallback camouflage: %s -> 127.0.0.1:%s\n" "$LISTEN_PORT" "$CAMOUFLAGE_WEB_PORT"
+  printf "\n"
+  printf "  %b" "$C_GREEN"
+  cat <<'DONE_ART'
+      ____                   _
+     |  _ \  ___  _ __   ___| |
+     | | | |/ _ \| '_ \ / _ \ |
+     | |_| | (_) | | | |  __/_|
+     |____/ \___/|_| |_|\___(_)
+DONE_ART
+  printf "  %b" "$C_RESET"
+  printf "  %bYour VLESS + REALITY server is live.%b\n" "$C_BOLD$C_GREEN" "$C_RESET"
+  printf "\n"
 
-  printf "\nPrimary VLESS URI:\n%s\n" "$uri_primary"
+  # Server info box
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bServer Details%b                                               %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %b%-36s%b %b|%b\n" "$C_DIM" "$C_RESET" "Profile:" "$C_BOLD" "$PROFILE_NAME" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %b%-36s%b %b|%b\n" "$C_DIM" "$C_RESET" "Server IP:" "$C_GREEN" "${server_host}" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "Primary port:" "$LISTEN_PORT" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "Fallback port:" "${FALLBACK_PORT:-none}" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "REALITY serverName:" "$SERVER_NAME" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "REALITY dest:" "$DEST_ENDPOINT" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "Camouflage fallback:" "${LISTEN_PORT} -> 127.0.0.1:${CAMOUFLAGE_WEB_PORT}" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %-36s %b|%b\n" "$C_DIM" "$C_RESET" "ShortIds (server):" "$short_ids_display" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %-22s %b%-36s%b %b|%b\n" "$C_DIM" "$C_RESET" "Primary shortId:" "$C_YELLOW" "$primary_short_id" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+
+  # Primary URI
+  printf "\n"
+  printf "  %bPrimary VLESS URI%b %b(copy this into your client)%b\n" "$C_BOLD$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+  divider
+  printf "  %b%s%b\n" "$C_GREEN" "$uri_primary" "$C_RESET"
+  divider
+
   if [[ -n "$uri_fallback" ]]; then
-    printf "\nFallback VLESS URI:\n%s\n" "$uri_fallback"
+    printf "\n"
+    printf "  %bFallback VLESS URI%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+    divider
+    printf "  %b%s%b\n" "$C_YELLOW" "$uri_fallback" "$C_RESET"
+    divider
   fi
 
-  printf "\nREALITY shortIds accepted by server: %s\n" "$short_ids_display"
-  printf "Primary shortId exported in client configs: %s\n" "$primary_short_id"
-
-  printf "\n[JSON] v2rayN / v2rayNG (same payload)\n"
-  cat "$v2rayn_json"
-
-  printf "\n[JSON] sing-box (also reused for Shadowrocket/Streisand style)\n"
-  cat "$sing_primary_json"
-
+  # QR codes
   if [[ -n "$qr_primary_block" ]]; then
-    printf "\nASCII QR (primary URI):\n%s\n" "$qr_primary_block"
+    printf "\n  %bQR Code (primary)%b  %b- scan with v2rayNG / Shadowrocket%b\n\n" "$C_BOLD$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+    printf "%s\n" "$qr_primary_block"
     if [[ -n "$uri_fallback" && -n "$qr_fallback_block" ]]; then
-      printf "\nASCII QR (fallback URI):\n%s\n" "$qr_fallback_block"
+      printf "\n  %bQR Code (fallback)%b\n\n" "$C_BOLD$C_CYAN" "$C_RESET"
+      printf "%s\n" "$qr_fallback_block"
     fi
   else
-    printf "\nQR note: %s\n" "${qr_status_msg}"
+    printf "\n  %bQR:%b %s\n" "$C_BOLD" "$C_RESET" "${qr_status_msg}"
   fi
 
-  printf "\nClient artifact files:\n"
-  printf "  - Summary: %s\n" "$summary_file"
-  printf "  - Primary URI: %s\n" "$uri_primary_file"
+  # Client config JSON previews
+  printf "\n  %bv2rayN / v2rayNG JSON%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  divider
+  cat "$v2rayn_json"
+  divider
+
+  printf "\n  %bsing-box / Shadowrocket JSON%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  divider
+  cat "$sing_primary_json"
+  divider
+
+  # Generated files
+  printf "\n"
+  printf "  %bGenerated Files%b  %b(all in %s)%b\n" "$C_BOLD$C_CYAN" "$C_RESET" "$C_DIM" "$CLIENT_DIR" "$C_RESET"
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "Summary:" "$C_RESET" "$summary_file"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "Primary URI:" "$C_RESET" "$uri_primary_file"
   if [[ -n "$uri_fallback" ]]; then
-    printf "  - Fallback URI: %s\n" "$uri_fallback_file"
-  else
-    printf "  - Fallback URI: <not configured>\n"
+    printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "Fallback URI:" "$C_RESET" "$uri_fallback_file"
   fi
-  printf "  - v2rayN JSON: %s\n" "$v2rayn_json"
-  printf "  - v2rayNG JSON: %s\n" "$v2rayng_json"
-  printf "  - sing-box JSON: %s\n" "$sing_primary_json"
-  printf "  - Shadowrocket/Streisand JSON: %s\n" "$apple_style_json"
-  printf "  - Accepted shortIds: %s\n" "$shortids_file"
-  printf "  - Primary QR (UTF8 text): %s\n" "$qr_primary_utf8_display"
-  printf "  - Primary QR (PNG): %s\n" "$qr_primary_png_display"
-  printf "  - Fallback QR (UTF8 text): %s\n" "$qr_fallback_utf8_display"
-  printf "  - Fallback QR (PNG): %s\n" "$qr_fallback_png_display"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "v2rayN JSON:" "$C_RESET" "$v2rayn_json"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "v2rayNG JSON:" "$C_RESET" "$v2rayng_json"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "sing-box JSON:" "$C_RESET" "$sing_primary_json"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "Shadowrocket:" "$C_RESET" "$apple_style_json"
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "ShortIds:" "$C_RESET" "$shortids_file"
+  [[ -f "$qr_primary_utf8_file" ]] && \
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "QR (UTF8):" "$C_RESET" "$qr_primary_utf8_file"
+  [[ -f "$qr_primary_png_file" ]] && \
+  printf "  %b|%b  %b%-18s%b %s\n" "$C_DIM" "$C_RESET" "$C_BOLD" "QR (PNG):" "$C_RESET" "$qr_primary_png_file"
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
 
-  printf "\nVLESS links (copy/paste):\n"
-  printf "  - Primary VLESS URI: %s\n" "$uri_primary"
-  if [[ -n "$uri_fallback" ]]; then
-    printf "  - Fallback VLESS URI: %s\n" "$uri_fallback"
-  else
-    printf "  - Fallback VLESS URI: <not configured>\n"
-  fi
-
-  printf "\nSingle-command reprint: %s\n" "$REPRINT_CMD"
-  printf "============================================================\n"
+  # Tips & quick reference
+  printf "\n"
+  printf "  %bQuick Reference%b\n" "$C_BOLD$C_CYAN" "$C_RESET"
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+  printf "  %b|%b                                                              %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bCheck status:%b      %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "sudo $SELF_INSTALLED_PATH status" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bRun diagnostics:%b   %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "sudo $SELF_INSTALLED_PATH diagnose" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bUpdate Xray:%b       %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "sudo $SELF_INSTALLED_PATH update" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bReprint configs:%b   %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "$REPRINT_CMD" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bRotate shortIds:%b   %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "sudo $SELF_INSTALLED_PATH rotate-shortid" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bRepair all:%b        %-38s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "$C_RESET" "sudo $SELF_INSTALLED_PATH repair" "$C_DIM" "$C_RESET"
+  printf "  %b|%b                                                              %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  %bTips:%b                                                      %b|%b\n" "$C_DIM" "$C_RESET" "$C_YELLOW$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  * Rotate shortIds periodically for better OPSEC             %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  * Test SSH in a separate session before closing this one    %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  * Back up /etc/xray and %s   %b|%b\n" "$C_DIM" "$C_RESET" "$CLIENT_DIR" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  * Run 'diagnose' before manual troubleshooting              %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b  * Use single-user profiles; avoid sharing links publicly    %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b|%b                                                              %b|%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "  %b+--------------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+  printf "\n"
 }
 
 status_mode() {
@@ -1874,7 +1991,9 @@ status_mode() {
   systemctl --no-pager --full status xray || true
 
   section "Listening TCP ports"
-  ss -lntp | grep -E "(:${LISTEN_PORT}|:${FALLBACK_PORT:-0}|:${CAMOUFLAGE_WEB_PORT}|:443|:8443|sshd|ssh|nginx)" || ss -lntp || true
+  local port_pattern=":${LISTEN_PORT}|:${CAMOUFLAGE_WEB_PORT}|:443|:8443|sshd|ssh|nginx"
+  [[ -n "$FALLBACK_PORT" ]] && port_pattern+="|:${FALLBACK_PORT}"
+  ss -lntp | grep -E "(${port_pattern})" || ss -lntp || true
 
   section "Camouflage web status"
   systemctl --no-pager --full status nginx || true
@@ -1958,8 +2077,10 @@ rotate_shortid_mode() {
   save_state
   persist_self_for_reuse
 
-  log_ok "Rotated REALITY shortIds (${SHORT_ID_COUNT} values). UUID/keypair preserved."
+  log_ok "Rotated ${SHORT_ID_COUNT} REALITY shortId(s). UUID and keypair preserved."
   generate_client_artifacts
+  printf "\n"
+  printf "  %bTip:%b Distribute new client configs to your users now.\n\n" "$C_YELLOW$C_BOLD" "$C_RESET"
 }
 
 repair_mode() {
@@ -2009,7 +2130,9 @@ update_mode() {
     save_state
   fi
 
-  log_ok "Update completed. Config and keys preserved."
+  printf "\n"
+  printf "  %b+%b Update complete. Config and keys preserved.\n" "$C_GREEN$C_BOLD" "$C_RESET"
+  printf "    Run %b%s status%b to verify.\n\n" "$C_CYAN" "$SELF_INSTALLED_PATH" "$C_RESET"
 }
 
 uninstall_mode() {
@@ -2017,14 +2140,21 @@ uninstall_mode() {
   load_state || true
 
   if ! is_tty; then
-    die "Uninstall requires interactive confirmation"
+    die "Uninstall requires interactive confirmation (run without --non-interactive)"
   fi
 
-  printf "This will stop and remove Xray service, configs, and update timer.\n"
-  printf "Type UNINSTALL to continue: "
-  local confirm
-  read -r confirm
-  [[ "$confirm" == "UNINSTALL" ]] || die "Aborted"
+  printf "\n"
+  printf "    %b+----------------------------------------------+%b\n" "$C_RED" "$C_RESET"
+  printf "    %b|%b  %bThis will permanently remove:%b                %b|%b\n" "$C_RED" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b                                              %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b    * Xray service and binary                 %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b    * Systemd update timer                    %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b    * Camouflage web server config            %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b    * Installed bootstrap helper              %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b|%b                                              %b|%b\n" "$C_RED" "$C_RESET" "$C_RED" "$C_RESET"
+  printf "    %b+----------------------------------------------+%b\n" "$C_RED" "$C_RESET"
+  printf "\n"
+  prompt_yes_no "Are you sure you want to uninstall?" "no" || die "Uninstall cancelled"
 
   systemctl disable --now xray >/dev/null 2>&1 || true
   systemctl disable --now xray-update.timer >/dev/null 2>&1 || true
@@ -2052,8 +2182,10 @@ uninstall_mode() {
 
   rm -f "$SELF_INSTALLED_PATH"
 
-  log_ok "Xray components removed"
+  printf "\n"
+  log_ok "Xray components removed successfully"
   log_info "Security packages (firewall/fail2ban/unattended-upgrades) were left in place intentionally"
+  printf "\n"
 }
 
 print_existing_install_menu() {
@@ -2061,18 +2193,18 @@ print_existing_install_menu() {
     return 1
   fi
 
-  section "Existing installation detected"
-  cat <<EOF
-Choose action:
-  1) update    - update Xray binary only (preserve config/keys)
-  2) repair    - re-apply firewall/ssh/service/config from saved state
-  3) install   - run full wizard again (can keep or rotate secrets)
-  4) status    - show status and firewall summary
-  5) diagnose  - unified diagnostics dump
-  6) reprint   - print client configs from saved state
-  7) rotate-shortid - rotate shortIds only (preserve UUID/keypair)
-  8) uninstall - remove deployment
-EOF
+  section "Existing Installation Detected"
+  printf "\n"
+  printf "    %bWhat would you like to do?%b\n\n" "$C_BOLD" "$C_RESET"
+  printf "    %b1)%b update          %b- update Xray binary (preserves config/keys)%b\n" "$C_GREEN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b2)%b repair          %b- re-apply firewall/ssh/service from saved state%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b3)%b install         %b- run full wizard again (can keep or rotate secrets)%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b4)%b status          %b- show service, ports, and firewall summary%b\n" "$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b5)%b diagnose        %b- unified diagnostics dump%b\n" "$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b6)%b reprint         %b- print client configs from saved state%b\n" "$C_CYAN" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b7)%b rotate-shortid  %b- rotate shortIds (preserve UUID/keypair)%b\n" "$C_YELLOW" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b8)%b uninstall       %b- remove deployment%b\n" "$C_RED" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "\n"
 
   local choice
   read -r -p "Selection [default: 1]: " choice
@@ -2094,23 +2226,12 @@ EOF
   return 0
 }
 
-opsec_briefing() {
-  section "OPSEC/DPI briefing"
-  cat <<'EOF'
-- JA3/JA4 are TLS fingerprinting methods: censors hash handshake traits (cipher suites, extensions, timing) to identify non-standard clients.
-- REALITY helps by making your server present handshake characteristics of a real high-traffic TLS target, reducing obvious protocol signatures.
-- It does NOT make you invisible: IP reputation, ASN patterns, traffic correlation, and long-lived uniform sessions can still flag you.
-- Use single-user profiles and avoid public sharing; shared links create noisy, correlated traffic.
-- Keep ports minimal (443 only by default), keep logs minimal, and patch frequently.
-EOF
-}
 
 wizard_question_1_domain_dest() {
-  section "1) REALITY impersonation target"
-  cat <<'EOF'
-Selection criteria: choose a TLS 1.3-capable, high-traffic, stable endpoint with normal global usage.
-Curated options are common front-door domains with broad baseline traffic.
-EOF
+  section "Step 1 of 7: REALITY Impersonation Target"
+  printf "\n"
+  printf "    %bPick a TLS 1.3 site to impersonate. High-traffic, stable domains work best.%b\n" "$C_DIM" "$C_RESET"
+  printf "\n"
 
   local options=(
     "www.cloudflare.com|Cloudflare edge; globally common TLS profile"
@@ -2122,9 +2243,18 @@ EOF
 
   local i=1
   for item in "${options[@]}"; do
-    printf "  %d) %s\n" "$i" "$item"
+    local domain="${item%%|*}"
+    local desc="${item#*|}"
+    if (( i == 1 )); then
+      printf "    %b%d)%b %b%-24s%b %s %b(recommended)%b\n" "$C_GREEN" "$i" "$C_RESET" "$C_BOLD" "$domain" "$C_RESET" "$desc" "$C_YELLOW" "$C_RESET"
+    elif (( i == 5 )); then
+      printf "    %b%d)%b %b%-24s%b %s\n" "$C_CYAN" "$i" "$C_RESET" "$C_BOLD" "$domain" "$C_RESET" "$desc"
+    else
+      printf "    %b%d)%b %-24s %s\n" "$C_BOLD" "$i" "$C_RESET" "$domain" "$desc"
+    fi
     ((i++))
   done
+  printf "\n"
 
   local pick="1"
   if is_tty; then
@@ -2155,11 +2285,10 @@ EOF
 }
 
 wizard_question_2_ports() {
-  section "2) Listen ports"
-  cat <<'EOF'
-Default is TCP/443 only (best blend-in, smallest attack surface).
-Fallback port improves availability if 443 is targeted, but adds another visible open port.
-EOF
+  section "Step 2 of 7: Listen Ports"
+  printf "\n"
+  printf "    %bTCP/443 blends in best. A fallback port adds availability but is another visible port.%b\n" "$C_DIM" "$C_RESET"
+  printf "\n"
 
   LISTEN_PORT="443"
   local custom_primary
@@ -2179,15 +2308,14 @@ EOF
 }
 
 wizard_question_3_firewall() {
-  section "3) Firewall style"
-  cat <<'EOF'
-nftables: lower-level, explicit policy, minimal footprint (recommended).
-ufw: simpler wrapper around netfilter, easier for admins used to ufw.
-EOF
-
+  section "Step 3 of 7: Firewall"
+  printf "\n"
   local pick="1"
   if is_tty; then
-    read -r -p "Choose firewall: 1) nftables 2) ufw [default: 1]: " pick
+    printf "    %b1)%b nftables  %b- explicit policy, minimal footprint%b  %b(recommended)%b\n" "$C_GREEN" "$C_RESET" "$C_DIM" "$C_RESET" "$C_YELLOW" "$C_RESET"
+    printf "    %b2)%b ufw       %b- simpler wrapper, familiar to most admins%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+    printf "\n"
+    read -r -p "    Choose firewall [default: 1]: " pick
     pick="$(trim "$pick")"
     [[ -z "$pick" ]] && pick="1"
   fi
@@ -2200,7 +2328,7 @@ EOF
 }
 
 wizard_question_4_ssh_hardening() {
-  section "4) SSH hardening"
+  section "Step 4 of 7: SSH Hardening"
 
   if prompt_yes_no "Change SSH port from 22?" "no"; then
     CHANGE_SSH_PORT="yes"
@@ -2242,7 +2370,7 @@ wizard_question_4_ssh_hardening() {
 }
 
 wizard_question_5_updates() {
-  section "5) Auto updates"
+  section "Step 5 of 7: Auto Updates"
 
   if prompt_yes_no "Enable unattended OS security upgrades?" "yes"; then
     UNATTENDED_UPGRADES_ENABLED="yes"
@@ -2250,12 +2378,11 @@ wizard_question_5_updates() {
     UNATTENDED_UPGRADES_ENABLED="no"
   fi
 
-  cat <<'EOF'
-Xray update policy options:
-  1) manual  - no scheduler, operator triggers updates
-  2) weekly  - systemd timer weekly (recommended)
-  3) daily   - systemd timer daily (fastest patch cadence)
-EOF
+  printf "\n    Xray update policy:\n"
+  printf "    %b1)%b manual  %b- no scheduler, operator triggers updates%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "    %b2)%b weekly  %b- systemd timer weekly%b  %b(recommended)%b\n" "$C_GREEN" "$C_RESET" "$C_DIM" "$C_RESET" "$C_YELLOW" "$C_RESET"
+  printf "    %b3)%b daily   %b- fastest patch cadence%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "\n"
 
   local pick="2"
   if is_tty; then
@@ -2273,15 +2400,14 @@ EOF
 }
 
 wizard_question_6_logging() {
-  section "6) Logging profile"
-  cat <<'EOF'
-minimal (default): access log disabled, warning-level errors only. Better OPSEC and less data at rest.
-verbose: includes access logs and info-level details for troubleshooting; higher forensic footprint.
-EOF
-
+  section "Step 6 of 7: Logging"
+  printf "\n"
+  printf "    %b1)%b minimal  %b- warnings only, no access log (better OPSEC)%b  %b(recommended)%b\n" "$C_GREEN" "$C_RESET" "$C_DIM" "$C_RESET" "$C_YELLOW" "$C_RESET"
+  printf "    %b2)%b verbose  %b- access + info logs for troubleshooting%b\n" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "\n"
   local pick="1"
   if is_tty; then
-    read -r -p "Choose logging profile: 1) minimal 2) verbose [default: 1]: " pick
+    read -r -p "    Choose logging profile [default: 1]: " pick
     pick="$(trim "$pick")"
     [[ -z "$pick" ]] && pick="1"
   fi
@@ -2294,7 +2420,7 @@ EOF
 }
 
 wizard_question_7_profile() {
-  section "7) Client profile naming"
+  section "Step 7 of 7: Client Profile"
   PROFILE_NAME="$(prompt_input "Client profile name" "reality-$(hostname -s)")"
   SHORT_ID_LABEL="$(prompt_input "Optional short-ID label (metadata only)" "main")"
   local sid_count
@@ -2310,7 +2436,6 @@ wizard_question_7_profile() {
 }
 
 run_wizard() {
-  opsec_briefing
   wizard_question_1_domain_dest
   wizard_question_2_ports
   wizard_question_3_firewall
@@ -2374,18 +2499,57 @@ install_mode() {
     run_wizard
   fi
 
+  # Show confirmation summary before making changes
+  if is_tty && [[ "$AUTO_PROFILE" != "true" ]]; then
+    section "Review Configuration"
+    printf "\n"
+    local _pw_status _fb_display
+    _pw_status="$( [[ "$DISABLE_PASSWORD_AUTH" == "yes" ]] && printf "%bdisabled%b" "$C_GREEN" "$C_RESET" || printf "%benabled%b" "$C_YELLOW" "$C_RESET" )"
+    _fb_display="${FALLBACK_PORT:-${C_DIM}none${C_RESET}}"
+
+    printf "    %b+------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %b%-20s%b %-32s %b|%b\n" "$C_DIM" "$C_RESET" "$C_BOLD" "REALITY target:" "$C_RESET" "$SERVER_NAME" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "REALITY dest:" "$DEST_ENDPOINT" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Primary port:" "$LISTEN_PORT" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32b %b|%b\n" "$C_DIM" "$C_RESET" "Fallback port:" "$_fb_display" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Firewall:" "$FIREWALL_STYLE" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "SSH port:" "$SSH_PORT" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32b %b|%b\n" "$C_DIM" "$C_RESET" "Password auth:" "$_pw_status" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "fail2ban:" "$FAIL2BAN_ENABLED" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "OS auto upgrades:" "$UNATTENDED_UPGRADES_ENABLED" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Xray updates:" "$XRAY_UPDATE_POLICY" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Log profile:" "$LOG_PROFILE" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Profile name:" "$PROFILE_NAME" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "ShortId count:" "$SHORT_ID_COUNT" "$C_DIM" "$C_RESET"
+    printf "    %b|%b  %-20s %-32s %b|%b\n" "$C_DIM" "$C_RESET" "Block private IPs:" "$BLOCK_PRIVATE_OUTBOUND" "$C_DIM" "$C_RESET"
+    printf "    %b+------------------------------------------------------+%b\n" "$C_DIM" "$C_RESET"
+    printf "\n"
+    prompt_yes_no "Proceed with installation?" "yes" || die "Installation cancelled by user"
+  fi
+
+  log_step "Installing dependencies..."
   install_dependencies
+  log_step "Downloading Xray binary..."
   install_or_update_xray_binary
+  log_step "Generating identity materials..."
   ensure_identity_materials
+  log_step "Setting up camouflage web server..."
   configure_camouflage_web_server
+  log_step "Writing Xray configuration..."
   write_xray_config
+  log_step "Configuring systemd service..."
   write_systemd_unit
+  log_step "Hardening SSH..."
   harden_ssh
+  log_step "Applying firewall rules..."
   apply_firewall
+  log_step "Configuring fail2ban..."
   configure_fail2ban
+  log_step "Configuring auto updates..."
   configure_unattended_upgrades
   persist_self_for_reuse
   configure_xray_update_timer
+  log_step "Detecting public IP..."
   PUBLIC_IP="$(detect_public_ip || true)"
   save_state
 
@@ -2439,6 +2603,10 @@ parse_args() {
         usage
         exit 0
         ;;
+      -V|--version)
+        printf "xray-reality-bootstrap v%s\n" "$SCRIPT_VERSION"
+        exit 0
+        ;;
       *)
         args+=("$1")
         shift
@@ -2454,10 +2622,77 @@ parse_args() {
   validate_short_id_count "$SHORT_ID_COUNT" || die "Invalid shortId count: ${SHORT_ID_COUNT}. Allowed range: 1-16"
 }
 
+print_banner() {
+  local arch kernel host uptime_str ram_str cpu_str cores_str
+  arch="$(uname -m)"
+  kernel="$(uname -r 2>/dev/null || echo "unknown")"
+  host="$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "unknown")"
+  uptime_str=""
+  if command_exists uptime; then
+    uptime_str="$(uptime -p 2>/dev/null || true)"
+    [[ -z "$uptime_str" ]] && uptime_str="$(uptime 2>/dev/null | sed 's/.*up/up/' || true)"
+  fi
+  ram_str=""
+  if [[ -f /proc/meminfo ]]; then
+    local mem_total_kb mem_total_mb
+    mem_total_kb="$(awk '/^MemTotal:/{print $2}' /proc/meminfo 2>/dev/null || echo 0)"
+    mem_total_mb=$(( mem_total_kb / 1024 ))
+    ram_str="${mem_total_mb} MB"
+  fi
+  cpu_str=""
+  cores_str=""
+  if [[ -f /proc/cpuinfo ]]; then
+    cpu_str="$(awk -F: '/^model name/{gsub(/^[ \t]+/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+    cores_str="$(nproc 2>/dev/null || true)"
+  fi
+
+  printf "\n"
+  printf "%b" "$C_CYAN"
+  cat <<'BANNER'
+
+      __  __              _  _ _____ _   _    ___ _____ __  __
+      \ \/ /_ _ __ _ _  _| || | ____/_\ | |  |_ _|_   _\ \/ /
+       >  <| '_/ _` | || | __ |  _|/ _ \| |__ | |  | |  >  <
+      /_/\_\_| \__,_|\_, |_||_|____/_/ \_\____|___| |_| /_/\_\
+                     |__/
+
+BANNER
+  printf "%b" "$C_RESET"
+
+  printf "     %bVLESS + XTLS Vision + REALITY%b       %bv%s%b\n" "$C_BOLD$C_WHITE" "$C_RESET" "$C_GREEN" "$SCRIPT_VERSION" "$C_RESET"
+  printf "     %bby braydos-h%b                        %bgithub.com/braydos-h%b\n" "$C_DIM" "$C_RESET" "$C_DIM" "$C_RESET"
+  printf "\n"
+
+  # System info
+  printf "     %b%-10s%b %b%s %s%b" "$C_BOLD" "OS" "$C_RESET" "$C_CYAN" "${OS_ID^}" "$OS_VERSION_ID" "$C_RESET"
+  printf "   %b%-10s%b %b%s%b" "$C_BOLD" "Arch" "$C_RESET" "$C_CYAN" "$arch" "$C_RESET"
+  printf "   %b%-10s%b %b%s%b\n" "$C_BOLD" "Kernel" "$C_RESET" "$C_CYAN" "$kernel" "$C_RESET"
+
+  printf "     %b%-10s%b %b%s%b" "$C_BOLD" "Host" "$C_RESET" "$C_CYAN" "$host" "$C_RESET"
+  if [[ -n "$cores_str" ]]; then
+    printf "   %b%-10s%b %b%s vCPU%b" "$C_BOLD" "CPU" "$C_RESET" "$C_CYAN" "$cores_str" "$C_RESET"
+  fi
+  if [[ -n "$ram_str" ]]; then
+    printf "   %b%-10s%b %b%s%b" "$C_BOLD" "RAM" "$C_RESET" "$C_CYAN" "$ram_str" "$C_RESET"
+  fi
+  printf "\n"
+
+  if [[ -n "$uptime_str" ]]; then
+    printf "     %b%-10s%b %b%s%b" "$C_BOLD" "Uptime" "$C_RESET" "$C_CYAN" "$uptime_str" "$C_RESET"
+  fi
+  printf "   %b%-10s%b %b%s%b\n" "$C_BOLD" "Mode" "$C_RESET" "$C_YELLOW$C_BOLD" "$MODE" "$C_RESET"
+
+  printf "\n"
+  printf "     %b" "$C_DIM"
+  printf '%62s' '' | tr ' ' '-'
+  printf "%b\n\n" "$C_RESET"
+}
+
 main() {
   require_root
   detect_os
   parse_args "$@"
+  print_banner
 
   if [[ "$NON_INTERACTIVE" == "true" && "$MODE" == "install" && "$AUTO_PROFILE" != "true" ]]; then
     die "Non-interactive install requires --auto with a saved options profile."
